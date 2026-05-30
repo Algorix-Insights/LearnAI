@@ -1,0 +1,42 @@
+name: Frontend CD
+
+on:
+  push:
+    branches:
+      - main
+  release:
+    types: [published]
+
+jobs:
+  deploy-development:
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy frontend to development
+        run: echo "Deploy frontend to development"
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: deploy-development
+    environment: staging
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy frontend to staging
+        run: echo "Deploy frontend to staging"
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment: production
+    if: github.event_name == 'release'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy frontend to production
+        run: echo "Deploy frontend to production"
