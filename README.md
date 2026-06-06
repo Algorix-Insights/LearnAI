@@ -17,6 +17,17 @@ Se recomienda una **Feature-Based Architecture** con una capa global de componen
 ## Justificacion
 La app frontend tendra varias pantallas y flujos con estados asincronos distintos. Organizarla por features reduce acoplamiento, mejora la escalabilidad del codigo y facilita que cada modulo evolucione de forma independiente.
 
+## Por que usamos Git Flow
+Usamos Git Flow para ordenar el desarrollo y reducir riesgos en un frontend que va a crecer por features y releases.
+
+- `main` queda reservada para versiones estables y listas para despliegue.
+- `develop` concentra integracion continua de cambios antes de llegar a produccion.
+- `feature/*` permite trabajar en funcionalidades aisladas sin bloquear al resto del equipo.
+- `release/*` facilita estabilizar, probar y ajustar una version antes de publicarla.
+- `hotfix/*` permite corregir bugs criticos en produccion sin mezclar trabajo en curso.
+
+Este flujo ayuda a mantener trazabilidad, hace mas claro el estado de cada cambio y baja la probabilidad de romper la rama principal con cambios incompletos.
+
 ## Estructura base
 - `src/app`: rutas y layout global.
 - `src/features`: funcionalidades por dominio.
