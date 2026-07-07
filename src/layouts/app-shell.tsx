@@ -51,7 +51,7 @@ export function AppShell({
       <div className="mx-auto grid h-[calc(100vh-2rem)] max-w-[1600px] overflow-hidden border border-[color:var(--app-border)] bg-[color:var(--app-surface)] shadow-[0_20px_80px_rgba(67,56,202,0.10)] backdrop-blur-xl lg:grid-cols-[280px_minmax(0,1fr)]">
 
         {/* ===================== SIDEBAR ===================== */}
-        <aside className="flex h-full overflow-y-auto flex-col border-b border-[color:var(--app-border)] bg-white/60 px-5 py-5 lg:border-b-0 lg:border-r">
+        <aside className="flex h-full overflow-y-auto flex-col border-b border-[color:var(--app-border)] bg-white/60 px-5 py-5 ">
 
           {/* --- Logo --- */}
           <div className="mb-8 flex shrink-0 items-center gap-3">
@@ -147,7 +147,7 @@ export function AppShell({
         <section className="flex h-full min-w-0 flex-col overflow-y-auto">
 
           {/* --- Header --- */}
-          <header className="flex shrink-0 flex-wrap items-center gap-4 border-b border-[color:var(--app-border)] bg-white/40 px-5 py-4 sm:px-6 lg:px-8">
+          <header className="flex shrink-0 flex-wrap items-center gap-4 bg-white/40 px-5 py-4 sm:px-6 lg:px-8">
 
             {/* Buscador */}
             <div className="flex min-w-0 flex-1 items-center gap-3 rounded-full border border-transparent bg-white/90 px-4 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.04)] ring-1 ring-black/5">
