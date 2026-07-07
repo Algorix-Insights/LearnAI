@@ -10,6 +10,7 @@
     "test": "echo \"No tests configured yet\""
   },
   "dependencies": {
+    "dayjs": "^1.11.21",
     "lucide-react": "^1.23.0",
     "next": "^15.0.0",
     "react": "^19.0.0",
