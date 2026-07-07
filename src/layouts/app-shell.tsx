@@ -179,7 +179,9 @@ export function AppShell({
             </Link>
           </header>
 
-          <main className="flex-1 px-5 py-5 sm:px-6 lg:px-8 lg:py-8">{children}</main>
+          <main className="flex-1 px-5 py-5 sm:px-6 lg:px-8 lg:py-8 border-l border-t border-[color:var(--app-border)] rounded-l-[2rem] bg-[linear-gradient(to_right,#80808026_1px,transparent_1px),linear-gradient(to_bottom,#80808026_1px,transparent_1px)] bg-[size:62px_62px]">
+            {children}
+          </main>
         </section>
       </div>
     </div>
