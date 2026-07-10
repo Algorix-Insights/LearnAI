@@ -7,9 +7,10 @@ import {
   Users,
   Search,
   Bell,
-  Plus,
   type LucideIcon,
 } from 'lucide-react';
+
+import { CreateNotebookDialog } from '@/components/CreateNotebookDialog';
 
 type NavItem = {
   label: string;
@@ -19,7 +20,7 @@ type NavItem = {
 
 type RecentItem = {
   label: string;
-  href: string;
+  href: string; 
 };
 
 const navItems: NavItem[] = [
@@ -170,13 +171,11 @@ export function AppShell({
             </button>
 
             {/* Crear cuaderno */}
-            <Link
-              href="/dashboard/cuadernos/nuevo"
-              className="inline-flex h-11 shrink-0 items-center justify-center gap-1 rounded-full bg-[linear-gradient(135deg,var(--app-primary),var(--app-secondary))] px-5 text-sm font-semibold text-white shadow-[0_16px_30px_rgba(116,82,245,0.24)] transition hover:translate-y-[-1px]"
-            >
-              Crear cuaderno
-              <Plus className="h-4 w-4" strokeWidth={2.5} />
-            </Link>
+            <CreateNotebookDialog
+              triggerLabel="Crear cuaderno"
+              triggerClassName="bg-[linear-gradient(135deg,var(--app-primary),var(--app-secondary))] px-5 text-white"
+              triggerIcon
+            />
           </header>
 
           <main className="flex-1 px-5 py-5 sm:px-6 lg:px-8 lg:py-8 border-l border-t border-[color:var(--app-border)] rounded-l-[2rem] bg-[linear-gradient(to_right,#80808026_1px,transparent_1px),linear-gradient(to_bottom,#80808026_1px,transparent_1px)] bg-[size:62px_62px]">

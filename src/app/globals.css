@@ -25,7 +25,7 @@ body {
     radial-gradient(circle at top left, rgba(116, 82, 245, 0.14), transparent 28%),
     radial-gradient(circle at top right, rgba(119, 234, 222, 0.18), transparent 30%),
     var(--app-bg);
-    color: #333333
+  color: #333333;
 }
 
 a {
@@ -94,18 +94,24 @@ a {
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
+    
+    /* Enlazamos el primary de shadcn con tu --app-primary */
+    --primary: #7452F5;
     --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
+    
+    /* Enlazamos el secondary y ring con tu app */
+    --secondary: #77eade;
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
     --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
+    --accent: #77eade;
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
+    
+    --border: rgba(116, 82, 245, 0.12);
     --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
+    --ring: #7452F5;
+    
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
@@ -114,12 +120,12 @@ a {
     --radius: 0.625rem;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary: #7452F5;
     --sidebar-primary-foreground: oklch(0.985 0 0);
     --sidebar-accent: oklch(0.97 0 0);
     --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar-border: rgba(116, 82, 245, 0.12);
+    --sidebar-ring: #7452F5;
   }
   .dark {
     --background: oklch(0.145 0 0);
