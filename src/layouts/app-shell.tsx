@@ -48,7 +48,7 @@ export function AppShell({
 }) {
   return (
     <div className="min-h-screen overflow-y-auto">
-      <div className="mx-auto grid h-[calc(100vh-2rem)] max-w-[1600px] overflow-hidden border border-[color:var(--app-border)] bg-[color:var(--app-surface)] shadow-[0_20px_80px_rgba(67,56,202,0.10)] backdrop-blur-xl lg:grid-cols-[280px_minmax(0,1fr)]">
+      <div className="mx-auto grid h-[calc(100vh-0rem)] max-w-[1600px] overflow-hidden border border-[color:var(--app-border)] bg-[color:var(--app-surface)] shadow-[0_20px_80px_rgba(67,56,202,0.10)] backdrop-blur-xl lg:grid-cols-[280px_minmax(0,1fr)]">
 
         {/* ===================== SIDEBAR ===================== */}
         <aside className="flex h-full overflow-y-auto flex-col border-b border-[color:var(--app-border)] bg-white/60 px-5 py-5 ">
