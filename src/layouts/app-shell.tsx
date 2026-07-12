@@ -10,6 +10,8 @@ import {
   Plus,
   type LucideIcon,
 } from 'lucide-react';
+import LogoRagAI from "@/assets/ragaiLogo.svg"
+import Image from 'next/image';
 
 type NavItem = {
   label: string;
@@ -39,6 +41,7 @@ const recursosRecientes: RecentItem[] = [
   { label: 'Git y github. La tec...', href: '/biblioteca/recursos/2' },
 ];
 
+
 export function AppShell({
   children,
   activeHref = '/home',
@@ -54,13 +57,8 @@ export function AppShell({
         <aside className="flex h-full overflow-y-auto flex-col border-b border-[color:var(--app-border)] bg-white/60 px-5 py-5 ">
 
           {/* --- Logo --- */}
-          <div className="mb-8 flex shrink-0 items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[linear-gradient(135deg,var(--app-primary),var(--app-secondary))] text-white shadow-[0_14px_30px_rgba(116,82,245,0.28)]">
-              <BookOpen className="h-6 w-6" strokeWidth={2.2} />
-            </div>
-            <div>
-              <p className="text-base font-bold text-[color:var(--app-primary)]">LearnAI</p>
-            </div>
+          <div className="mb-8 flex items-center justify-start">
+            <Image src={LogoRagAI} alt="Logo de la aplicacion LearnIA" width={50} height={50} className='w-28' />
           </div>
 
           {/* Nav*/}

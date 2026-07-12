@@ -41,6 +41,26 @@ a {
   background: rgba(116, 82, 245, 0.18);
 }
 
+@layer components {
+  .dashboard-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 1024px) {
+    .dashboard-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-rows: 260px 280px 260px;
+      grid-template-areas:
+        "rating   mastered  reforzar"
+        "learning learning  proximos"
+        "streak   streak    dedicated"
+        "activity activity  dedicated";
+    }
+  }
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
