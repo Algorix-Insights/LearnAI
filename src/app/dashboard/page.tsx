@@ -13,7 +13,10 @@ import StreakCard from "@/features/Dashboard/Components/Streak";
 import RecentActivityCard from "@/features/Dashboard/Components/RecentActivity"
 import { MasteredNotebooksCard } from "@/features/Dashboard/Components/Mastered";
 
-export default function DashboardPage() {
+import { requireAuth } from '@/lib/require-auth';
+
+export default async function DashboardPage() {
+    await requireAuth();
     return (
         <AppShell activeHref="/dashboard">
             {/* Contenedor general */}

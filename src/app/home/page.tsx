@@ -7,6 +7,8 @@ import { FileText, Copy, Plus } from "lucide-react";
 import NewNoteBook from "@/assets/newNoteBook.svg"
 import FlameStreak from "@/assets/flameStreak.svg"
 import StreakCard from "@/features/Dashboard/Components/Streak";
+import { requireAuth } from '@/lib/require-auth';
+
 
 type User = {
   userName: string;
@@ -103,7 +105,8 @@ let currentDay = new Date().toLocaleDateString("es-ES", {
 
 let todayCapitalized = currentDay.charAt(0).toUpperCase() + currentDay.slice(1);
 
-export default function HomePage() {
+export default async function HomePage() {
+  await requireAuth();
   return (
     <AppShell>
       {/* contenedor general */}

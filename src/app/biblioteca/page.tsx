@@ -5,6 +5,7 @@ import { BibliotecaHeroSection } from '@/features/biblioteca/components/Bibliote
 import { BibliotecaHighlightsSection } from '@/features/biblioteca/components/BibliotecaHighlightsSection';
 import { BibliotecaNotebooksSection } from '@/features/biblioteca/components/BibliotecaNotebooksSection';
 import type { HighlightCard, NotebookItem } from '@/features/biblioteca/types';
+import { requireAuth } from '@/lib/require-auth';
 
 const filters = ['Todos', 'Vencen pronto', 'Favoritos'];
 
@@ -57,7 +58,9 @@ const notebooks: NotebookItem[] = [
   },
 ];
 
-export default function BibliotecaPage() {
+export default async function BibliotecaPage() {
+  await requireAuth();
+
   return (
     <AppShell activeHref="/biblioteca">
       <div className="space-y-8 pb-4 flex flex-col gap-8">
