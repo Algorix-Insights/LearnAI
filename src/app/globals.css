@@ -7,8 +7,8 @@
   --app-bg: #f6f7ff;
   --app-surface: rgba(255, 255, 255, 0.82);
   --app-border: rgba(116, 82, 245, 0.12);
-  --app-primary: #7452f5;
-  --app-secondary: #77eade;
+  --app-primary: #3916BD;
+  --app-secondary: #0CAEAE;
 }
 
 html,
@@ -37,3 +37,40 @@ a {
 ::selection {
   background: rgba(116, 82, 245, 0.18);
 }
+
+@layer components {
+  .dashboard-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 1024px) {
+    .dashboard-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-rows: 260px 280px 260px;
+      grid-template-areas:
+        "rating   mastered  reforzar"
+        "learning learning  proximos"
+        "streak   streak    dedicated"
+        "activity activity  dedicated";
+    }
+  }
+}
+
+/* .dashboard-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: 220px 220px 220px;
+    grid-template-areas:
+      "rating   mastered  reforzar"
+      "learning learning  proximos"
+      "streak   dedicated activity";
+  }
+} */

@@ -6,6 +6,7 @@ import Quote from "@/assets/quote.svg";
 import { FileText, Copy, Plus } from "lucide-react";
 import NewNoteBook from "@/assets/newNoteBook.svg"
 import FlameStreak from "@/assets/flameStreak.svg"
+import StreakCard from "@/features/Dashboard/Components/Streak";
 
 type User = {
   userName: string;
@@ -134,7 +135,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Frase del días */}
+        {/* Frase del día */}
         <div className="bg-[var(--app-bg)] rounded-2xl border border-[color:var(--app-border)] flex items-center gap-4 py-3 px-5 ">
           <div>
             <Image
@@ -255,55 +256,9 @@ export default function HomePage() {
 
 
             {/* Racha de actividad*/}
-            <div className="shrink-0 border border-[color:var(--app-border)] rounded-2xl py-5 px-8 bg-white flex justify-between items-cente">
-
-              <div className="flex flex-col gap-10">
-
-                <div className="flex flex-col">
-                  <p className="font-semibold text-base">Racha</p>
-                  <p className="text-sm font-normal text-slate-600">Tu mejor racha: {bestStreak}</p>
-                </div>
-
-                <div className="flex gap-3">
-                  {streakDays.map((day, index)=>(
-                    <div key={index} className="flex flex-col items-center gap-4">
-                      <div
-                        className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                          day.completed
-                            ? 'bg-[linear-gradient(135deg,var(--app-primary),var(--app-secondary))]'
-                            : 'bg-slate-200'
-                        }`}
-                      >
-                        <svg
-                          viewBox="0 0 20 20"
-                          className={`h-4 w-4 ${day.completed ? 'text-white' : 'text-slate-400'}`}
-                          fill="none"
-                        >
-                          <path
-                            d="M4 10.5L8 14.5L16 5.5"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </div>
-                      <p className="text-[10px] text-slate-400">{day.day}</p>
-                    </div>
-                  ))}
-                </div>
-
-              </div>
-
-
-              <div className="flex w-32 shrink-0 flex-col items-center gap-1">
-                <Image src={FlameStreak} alt="Icono de llamas para racha" width={70} height={70} className="shrink-0"/>
-                <p className="text-xl font-semibold text-slate-800">{currentStreak} Dias </p>
-                <p className="text-xs font-normal">(actual)</p>
-              </div>
-              
+            <div className="shrink-0 border border-[color:var(--app-border)] rounded-2xl py-5 px-8 bg-white flex justify-between items-center">
+              <StreakCard/>
             </div>
-
           </div>
         </div>
       </div>
