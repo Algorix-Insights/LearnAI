@@ -1,8 +1,11 @@
 import Link from 'next/link';
 
 import { AppShell } from '@/layouts/app-shell';
+import { requireAuth } from '@/lib/require-auth';
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  await requireAuth();
+
   return (
     <AppShell activeHref="/dashboard">
       <section className="grid min-h-[60vh] place-items-center rounded-[2rem] border border-[color:var(--app-border)] bg-white/80 p-8 text-center shadow-[0_10px_40px_rgba(15,23,42,0.04)]">

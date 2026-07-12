@@ -1,5 +1,4 @@
 import Image from 'next/image';
-
 import stars from '@/assets/stars.svg';
 import { CreateNotebookDialog } from '@/components/CreateNotebookDialog';
 

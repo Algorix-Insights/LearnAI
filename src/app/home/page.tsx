@@ -1,13 +1,16 @@
 import Link from 'next/link';
 
 import { AppShell } from '@/layouts/app-shell';
+import { requireAuth } from '@/lib/require-auth';
 
 const deadlineCards = [
   { date: '12', month: 'Mayo', time: '02:35 pm', title: 'Estructura de datos y algoritmos', note: 'Quedan 2 días' },
   { date: '18', month: 'Mayo', time: '08:00 am', title: 'Arquitectura de software', note: 'Quedan 4 días' },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  await requireAuth();
+
   return (
     <AppShell>
       <div className="grid gap-5 xl:grid-cols-[1.35fr_0.95fr]">

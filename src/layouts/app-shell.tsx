@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 
 import { CreateNotebookDialog } from '@/components/CreateNotebookDialog';
+import { LogoutButton } from '@/components/LogoutButton';
 
 type NavItem = {
   label: string;
@@ -135,12 +136,7 @@ export function AppShell({
 
           {/* Cerrar sesión */}
           <div className="mt-6 shrink-0 pt-2">
-            <Link
-              href="/login"
-              className="inline-flex w-full items-center justify-center rounded-full border border-[color:var(--app-primary)] px-4 py-3 text-sm font-semibold text-[color:var(--app-primary)] transition hover:bg-[color:var(--app-primary)] hover:text-white"
-            >
-              Cerrar sesión
-            </Link>
+            <LogoutButton />
           </div>
         </aside>
 
