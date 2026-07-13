@@ -13,6 +13,7 @@ import {
     getAuthToken,
     storeAuthToken,
     storePendingOtpEmail,
+    storeUserId,
 } from '@/lib/auth-client';
 import { useEffect } from 'react';
 
@@ -43,6 +44,7 @@ export default function RegisterPage() {
         onSuccess: (data, variables) => {
             if (data.access_token) {
                 storeAuthToken(data.access_token, data.expires_in ?? undefined);
+                storeUserId(data.user_id);
                 clearPendingOtpSession();
                 router.replace('/home');
                 return;

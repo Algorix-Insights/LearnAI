@@ -9,12 +9,6 @@ import SourcesSection from './SourcesSection';
 import StudyTimerCard from './StudyTimerCard';
 import SummaryCard from './SummaryCard';
 
-const sources = [
-    { name: 'Git y Github, un viaje...', type: 'PDF', pages: '124 Páginas', accent: 'bg-rose-500' },
-    { name: 'Git y Github, un viaje...', type: 'PDF', pages: '124 Páginas', accent: 'bg-sky-500' },
-    { name: 'Git y Github, un viaje...', type: 'PDF', pages: '124 Páginas', accent: 'bg-violet-500' },
-];
-
 const generatedResources = [
     { name: 'Git y Github, un viaje...', type: 'PDF', pages: '124 Páginas' },
     { name: 'Git y Github, un viaje...', type: 'PDF', pages: '124 Páginas' },
@@ -23,7 +17,6 @@ const generatedResources = [
 
 export default function SidebarLeft() {
     const params = useParams();
-    // Extrae el id de la URL (ajusta 'notebook_id' según el nombre del segmento dinámico de tu App Router [notebook_id] o [id])
     const notebookId = (params?.notebook_id ?? params?.id ?? '') as string;
 
     const [showTopMask, setShowTopMask] = useState(false);
@@ -55,9 +48,9 @@ export default function SidebarLeft() {
                 }}
             >
                 <StudyTimerCard notebookId={notebookId} />
-                <DueDateCard />
-                <SummaryCard />
-                <SourcesSection sources={sources} />
+                <DueDateCard notebookId={notebookId} />
+                <SummaryCard  notebookId={notebookId}/>
+                <SourcesSection notebookId={notebookId} />
                 <ResourcesSection resources={generatedResources} />
             </div>
         </aside>

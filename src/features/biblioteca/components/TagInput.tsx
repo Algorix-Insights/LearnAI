@@ -45,7 +45,7 @@ const selectClassNames: ClassNamesConfig<Option, false> = {
 export default function TagInput({
     updateParentState,
 }: {
-    updateParentState: (value: string) => void;
+    updateParentState: (value: Option | null) => void;
 }) {
     const [value, setValue] = useState<Option | null>(null);
     const queryClient = useQueryClient();
@@ -63,7 +63,7 @@ export default function TagInput({
         if (!Array.isArray(rawList)) return [];
         
         return rawList.map((tag: any) => 
-            createOption(tag.name ?? tag.label, tag.tag_id ?? tag.value)
+            createOption(tag.name ?? tag.label, tag.id ?? tag.tag_id ?? tag.value)
         );
     }, [responseData]);
 
@@ -74,9 +74,9 @@ export default function TagInput({
         mutationFn: (newTagName: string) => notebookTagService.createNotebookTag(newTagName),
         onSuccess: (res, variables) => {
             queryClient.invalidateQueries({ queryKey: ['tags'] });
-            const createdOption = createOption(variables);
+            const createdOption = createOption(variables, res?.data?.id ?? res?.data?.tag_id);
             setValue(createdOption);
-            updateParentState(variables);
+            updateParentState(createdOption);
         },
     });
 
@@ -86,7 +86,7 @@ export default function TagInput({
 
     const handleChange = (newValue: Option | null) => {
         setValue(newValue);
-        updateParentState(newValue ? newValue.label : '');
+        updateParentState(newValue);
     };
 
     const isDisabled = isLoadingTags || isCreatingTag;

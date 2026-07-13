@@ -1,4 +1,5 @@
 import { api } from '@/services/api';
+import type { ApiEnvelope } from '@/services/contracts';
 
 const BASE_URL = '/notebooks';
 
@@ -46,6 +47,10 @@ export type NotebookResponse = {
     data: Notebook;
 };
 
+export type NotebookUserLinkResponse = {
+    data: unknown;
+};
+
 function buildQueryParams(params?: NotebookListParams) {
     const searchParams = new URLSearchParams();
 
@@ -69,7 +74,7 @@ export const notebookService = {
 
     async createNotebook(notebookData: {
         name: string;
-        dueDate: string;
+        dueDate?: string;
     }) {
         const { name, dueDate: due_date } = notebookData;
         const last_seen_at = new Date().toISOString();
@@ -77,13 +82,7 @@ export const notebookService = {
             name,
             due_date,
             description: "",
-            grade: 0,
             summary: "",
-            is_dominated: false,
-            is_favorite: false,
-            status: "active",
-            spent_time: 0,
-            last_seen_at,
         });
         console.log('Notebook created:', response.data);
         return response.data;
@@ -91,6 +90,11 @@ export const notebookService = {
 
     async getNotebookById(notebookId: string) {
         const response = await api.get<NotebookResponse>(`${BASE_URL}/${notebookId}`);
+        return response.data;
+    },
+
+    async attachNotebookToUser(userId: string, notebookId: string) {
+        const response = await api.post<ApiEnvelope<unknown>>(`/users/${userId}/notebooks/${notebookId}`, {});
         return response.data;
     },
 
@@ -110,4 +114,9 @@ export const notebookService = {
         const response = await api.patch<NotebookResponse>(`${BASE_URL}/${notebookId}`, { due_date: dueDate });
         return response.data;
     },
+
+    async updateNotebook(notebookId: string, notebookData: Partial<Notebook>) {
+        const response = await api.patch<NotebookResponse>(`${BASE_URL}/${notebookId}`, notebookData);
+        return response.data;
+    }
 };

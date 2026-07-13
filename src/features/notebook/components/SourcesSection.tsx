@@ -1,9 +1,9 @@
-import { Plus, UploadCloud } from 'lucide-react';
-
+import { useQuery } from '@tanstack/react-query';
+import { Plus, UploadCloud, FileText } from 'lucide-react';
 import { Button } from '@/components/Button';
-
 import FileCard from './FileCard';
 import { CollapsibleCard } from '@/components/CollapsibleCard';
+import { SourceRagService, DocumentResponse } from '@/services/Source';
 
 export type SourceItem = {
     name: string;
@@ -13,10 +13,26 @@ export type SourceItem = {
 };
 
 type SourcesSectionProps = {
-    sources: SourceItem[];
+    notebookId: string;
 };
 
-export default function SourcesSection({ sources }: SourcesSectionProps) {
+const mapDocumentToSourceItem = (doc: DocumentResponse): SourceItem => ({
+    name: doc.name,
+    type: doc.source_type || doc.mime_type || 'Documento',
+    pages: `${(doc.size_bytes / 1024).toFixed(1)} KB`, 
+    accent: 'bg-[#7452F5]',
+});
+
+export default function SourcesSection({ notebookId }: SourcesSectionProps) {
+    const { data: response, isLoading, isError } = useQuery({
+        queryKey: ['sources', notebookId],
+        queryFn: () => SourceRagService.getSourcesUploaded(notebookId),
+        enabled: !!notebookId,
+    });
+
+    const documents = response?.data ?? [];
+    const sources: SourceItem[] = documents.map(mapDocumentToSourceItem);
+
     return (
         <CollapsibleCard
             header={
@@ -27,14 +43,35 @@ export default function SourcesSection({ sources }: SourcesSectionProps) {
                     </div>
                 </div>
             }
-
             content={
                 <div className="mt-3 space-y-2.5">
-                    <Button variant="secondary" className="gap-2 w-full">
+                    <Button variant="secondary" className="gap-2 w-full" type="button">
                         <Plus className="size-4" />
                         <span>Agregar Fuente</span>
                     </Button>
-                    {sources.map((source) => (
+
+                    {isLoading && (
+                        <p className="text-xs text-slate-400 text-center py-4">
+                            Cargando documentos...
+                        </p>
+                    )}
+
+                    {isError && (
+                        <p className="text-xs text-red-500 text-center py-4">
+                            Error al cargar las fuentes.
+                        </p>
+                    )}
+
+                    {!isLoading && !isError && sources.length === 0 && (
+                        <div className="text-center py-6 px-4 border border-dashed border-slate-200 rounded-lg">
+                            <FileText className="size-8 mx-auto text-slate-300 mb-2" />
+                            <p className="text-xs text-slate-500 leading-relaxed">
+                                No se han cargado documentos, presiona el botón para agregar fuentes y estudiar.
+                            </p>
+                        </div>
+                    )}
+
+                    {!isLoading && !isError && sources.map((source) => (
                         <FileCard
                             key={`${source.name}-${source.pages}`}
                             title={source.name}
@@ -53,8 +90,6 @@ export default function SourcesSection({ sources }: SourcesSectionProps) {
                     ))}
                 </div>
             }
-
         />
-        
     );
 }

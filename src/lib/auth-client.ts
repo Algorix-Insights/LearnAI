@@ -2,6 +2,14 @@ import { AUTH_COOKIE, PENDING_OTP_COOKIE } from '@/lib/auth';
 
 const DEFAULT_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const PENDING_OTP_MAX_AGE = 60 * 15;
+const USER_ID_COOKIE = 'user_id';
+
+function isValidUserId(value: unknown): value is string {
+    if (typeof value !== 'string') return false;
+
+    const normalizedValue = value.trim().toLowerCase();
+    return Boolean(normalizedValue) && normalizedValue !== 'undefined' && normalizedValue !== 'null';
+}
 
 function setCookie(name: string, value: string, maxAge = DEFAULT_COOKIE_MAX_AGE) {
     const secure = window.location.protocol === 'https:' ? '; secure' : '';
@@ -21,6 +29,34 @@ export function storeAuthToken(token: string, maxAge?: number) {
     setCookie(AUTH_COOKIE, token, maxAge);
 }
 
+export function storeUserId(userId?: string | null) {
+    if (!isValidUserId(userId)) {
+        deleteCookie(USER_ID_COOKIE);
+        return;
+    }
+
+    setCookie(USER_ID_COOKIE, userId);
+}
+
+export function getUserId() {
+    const cookieValue = document.cookie
+        .split('; ')
+        .find((entry) => entry.startsWith(`${USER_ID_COOKIE}=`))
+        ?.split('=')[1];
+
+    if (!cookieValue) {
+        return '';
+    }
+
+    const decodedValue = decodeURIComponent(cookieValue);
+    if (isValidUserId(decodedValue)) {
+        return decodedValue;
+    }
+
+    deleteCookie(USER_ID_COOKIE);
+    return '';
+}
+
 export function getAuthToken() {
     const cookieValue = document.cookie
         .split('; ')
@@ -37,6 +73,7 @@ export function getAuthToken() {
 export function clearAuthSession() {
     deleteCookie(AUTH_COOKIE);
     deleteCookie(PENDING_OTP_COOKIE);
+    deleteCookie(USER_ID_COOKIE);
     sessionStorage.removeItem(PENDING_OTP_COOKIE);
 }
 

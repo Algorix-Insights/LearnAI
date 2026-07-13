@@ -1,5 +1,3 @@
-import Link from 'next/link';
-
 import type { HighlightCard } from '../types';
 
 type BibliotecaHighlightsSectionProps = {
@@ -17,15 +15,15 @@ export function BibliotecaHighlightsSection({ cards }: BibliotecaHighlightsSecti
           <h2 className="mt-1 text-xl font-semibold text-slate-500">Cuadernos próximos a vencer</h2>
         </div>
 
-        <Link href="/dashboard" className="text-sm font-semibold text-[color:var(--app-primary)] hover:underline">
+        <a href="/dashboard" className="text-sm font-semibold text-[color:var(--app-primary)] hover:underline">
           Ver todos los cuadernos
-        </Link>
+        </a>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {cards.map((card) => (
           <article
-            key={card.id}
+            key={`${card.title}-${card.accent}`}
             className="relative overflow-hidden rounded-[2rem] border border-[color:var(--app-border)] bg-white p-7 shadow-[0_18px_36px_rgba(15,23,42,0.04)]"
           >
             <div className="mb-8 flex justify-between">
@@ -44,7 +42,7 @@ export function BibliotecaHighlightsSection({ cards }: BibliotecaHighlightsSecti
               <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
                 <span>{card.dueText}</span>
                 <span>•</span>
-                <span>{card.detail}</span>
+                <span>{card.sources}</span>
               </div>
             </div>
           </article>

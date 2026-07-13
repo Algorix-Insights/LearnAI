@@ -2,12 +2,7 @@ import Image from 'next/image';
 import stars from '@/assets/stars.svg';
 import { CreateNotebookDialog } from '@/components/CreateNotebookDialog';
 
-type BibliotecaHeroSectionProps = {
-    search: string;
-    onSearchChange: (value: string) => void;
-};
-
-export function BibliotecaHeroSection({ search, onSearchChange }: BibliotecaHeroSectionProps) {
+export function BibliotecaHeroSection() {
     return (
         <section>
             <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
@@ -27,8 +22,6 @@ export function BibliotecaHeroSection({ search, onSearchChange }: BibliotecaHero
                                 <input
                                     type="text"
                                     placeholder="Buscar cuadernos por nombre o descripción"
-                                    value={search}
-                                    onChange={(event) => onSearchChange(event.target.value)}
                                     className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
                                 />
                             </label>

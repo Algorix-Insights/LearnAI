@@ -8,7 +8,7 @@ import { useMutation } from '@tanstack/react-query';
 import { AuthService } from '@/services/Auth';
 import { useRouter } from 'next/navigation';
 import { SignInFormData, signInSchema } from '@/features/auth/signIn';
-import { clearPendingOtpSession, getAuthToken, storeAuthToken } from '@/lib/auth-client';
+import { clearPendingOtpSession, getAuthToken, storeAuthToken, storeUserId } from '@/lib/auth-client';
 import { useEffect } from 'react';
 
 export default function LoginPage() {
@@ -43,6 +43,7 @@ export default function LoginPage() {
 		},
 		onSuccess: (data) => {
 			storeAuthToken(data.access_token, data.expires_in ?? undefined);
+			storeUserId(data.user_id);
 			clearPendingOtpSession();
 			router.replace('/home');
 		}

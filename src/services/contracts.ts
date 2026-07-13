@@ -60,6 +60,7 @@ export type UserResponse = ApiEnvelope<User>;
 
 export interface AuthSession {
   access_token: string;
+  user_id: string;
   refresh_token: string | null;
   token_type: string;
   expires_in: number | null;

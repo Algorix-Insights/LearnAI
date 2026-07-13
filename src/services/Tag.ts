@@ -31,7 +31,7 @@ async function attachToNotebook(
   tagId: string,
 ): Promise<NotebookTag> {
   const response = await api.post<ApiEnvelope<NotebookTag>>(
-    `/notebooks/${notebookId}/tags/${tagId}`,
+    `/notebooks/${notebookId}/tags/${tagId}`, {}
   );
   return unwrapData(response.data);
 }

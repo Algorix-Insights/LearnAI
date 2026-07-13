@@ -1,7 +1,21 @@
 import { CollapsibleCard } from '@/components/CollapsibleCard';
+import { notebookService } from '@/services/Notebook';
+import { useQuery } from '@tanstack/react-query';
+import { id } from 'date-fns/locale';
 import { Sparkles } from 'lucide-react';
 
-export default function SummaryCard() {
+export default function SummaryCard({
+    notebookId,
+}: {
+    notebookId: string;
+}) {
+    const { data: notebook } = useQuery({
+        queryKey: ['notebook', notebookId],
+        queryFn: () => notebookService.getNotebookById(notebookId),
+    });
+
+    const summary = notebook?.data?.summary ?? 'Sube tus archivos para crear un resumen de tu cuaderno.';
+
     return (
         <CollapsibleCard
             header={
@@ -12,9 +26,9 @@ export default function SummaryCard() {
             }
             content={
                 <p className="text-xs leading-5 text-slate-400">
-                    It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed
+                    {summary}
                 </p>
             }
-        />  
+        />
     );
 }

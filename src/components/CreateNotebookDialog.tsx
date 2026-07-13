@@ -12,7 +12,10 @@ import TagInput from '@/features/biblioteca/components/TagInput';
 import { InputText } from './InputText';
 import { InputDate } from './InputDate';
 import { notebookService } from '@/services/Notebook';
+import { notebookTagService } from '@/services/NotebookTag';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { getUserId, storeUserId } from '@/lib/auth-client';
+import { AuthService } from '@/services/Auth';
 
 type CreateCuadernoDialogProps = {
   triggerLabel?: string;
@@ -24,6 +27,11 @@ function getTodayInputValue() {
   const today = new Date();
   const timezoneOffset = today.getTimezoneOffset() * 60000;
   return new Date(today.getTime() - timezoneOffset).toISOString().slice(0, 10);
+}
+
+function isValidUserId(userId: string) {
+  const normalizedUserId = userId.trim().toLowerCase();
+  return Boolean(normalizedUserId) && normalizedUserId !== 'undefined' && normalizedUserId !== 'null';
 }
 
 export function CreateNotebookDialog({
@@ -39,14 +47,12 @@ export function CreateNotebookDialog({
     studyDeadline: todayInputValue,
     selectedTag: 'General',
   });
+  const [selectedTagId, setSelectedTagId] = useState('');
 
   const queryClient = useQueryClient();
 
-  const { mutate: createNotebook, isPending } = useMutation({
+  const { mutateAsync: createNotebook, isPending } = useMutation({
     mutationFn: notebookService.createNotebook,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notebooks'] });
-    },
   });
 
   const setNotebookField = (field: keyof typeof notebookForm, value: string | boolean) => {
@@ -55,12 +61,42 @@ export function CreateNotebookDialog({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    createNotebook({
-      name: notebookForm.name,
-      dueDate: notebookForm.studyDeadlineEnabled && notebookForm.studyDeadline
-        ? new Date(notebookForm.studyDeadline).toISOString()
-        : new Date().toISOString(),
-    });
+
+    void (async () => {
+      let userId = getUserId();
+
+      if (!isValidUserId(userId)) {
+        try {
+          const currentUser = await AuthService.getMe();
+          const resolvedUserId = typeof currentUser.user_id === 'string' ? currentUser.user_id : '';
+
+          if (isValidUserId(resolvedUserId)) {
+            userId = resolvedUserId;
+            storeUserId(resolvedUserId);
+          }
+        } catch {
+          userId = '';
+        }
+      }
+
+      const notebookResponse = await createNotebook({
+        name: notebookForm.name,
+        ...(notebookForm.studyDeadlineEnabled && notebookForm.studyDeadline && {
+          dueDate: new Date(notebookForm.studyDeadline).toISOString()
+        }),
+      });
+
+      const notebookId = notebookResponse?.data?.notebook_id;
+      if (isValidUserId(userId) && notebookId) {
+        await notebookService.attachNotebookToUser(userId, notebookId);
+      }
+
+      if (notebookId && selectedTagId) {
+        await notebookTagService.attachTagToNotebook(notebookId, selectedTagId);
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['notebooks'] });
+    })();
   };
 
   return (
@@ -99,7 +135,12 @@ export function CreateNotebookDialog({
                 onChange={(e) => setNotebookField('name', e.target.value)}
               />
 
-              <TagInput updateParentState={(value) => setNotebookField('selectedTag', value)} />
+              <TagInput
+                updateParentState={(value) => {
+                  setNotebookField('selectedTag', value?.label ?? '');
+                  setSelectedTagId(value?.value ?? '');
+                }}
+              />
 
               <InputDate
                 id="date-required"

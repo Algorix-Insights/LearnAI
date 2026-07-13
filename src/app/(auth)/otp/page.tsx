@@ -5,7 +5,7 @@ import { Button } from "@/components/Button"
 import { useMutation } from "@tanstack/react-query"
 import { AuthService } from "@/services/Auth"
 import { useEffect, useState } from "react"
-import { clearPendingOtpSession, getAuthToken, getPendingOtpEmail, storeAuthToken } from "@/lib/auth-client"
+import { clearPendingOtpSession, getAuthToken, getPendingOtpEmail, storeAuthToken, storeUserId } from "@/lib/auth-client"
 import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from "@/components/ui/input-otp"
 import { useCountdown } from "@/hooks/use-countdown"
 import { ApiClientError } from "@/services/api"
@@ -16,11 +16,13 @@ export default function InputOTPInvalid() {
     const [value, setValue] = useState("")
     const [email, setEmail] = useState('')
     const router = useRouter()
+    
     const {
         isActive: isResendCooldownActive,
         remainingSeconds: resendRemainingSeconds,
         start: startResendCooldown,
     } = useCountdown()
+    
     const {
         isActive: isVerifyCooldownActive,
         remainingSeconds: verifyRemainingSeconds,
@@ -77,6 +79,7 @@ export default function InputOTPInvalid() {
         },
         onSuccess: (data) => {
             storeAuthToken(data.access_token, data.expires_in ?? undefined)
+            storeUserId(data.user_id)
             clearPendingOtpSession()
             router.replace('/home')
         },
@@ -89,7 +92,8 @@ export default function InputOTPInvalid() {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        if (!email || value.length !== 6) {
+        // CAMBIO: Validación actualizada a longitud de 8 dígitos
+        if (!email || value.length !== 8) {
             return
         }
         verifyOtp({ email, token: value })
@@ -97,13 +101,15 @@ export default function InputOTPInvalid() {
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen w-full p-6">
-            <form onSubmit={handleSubmit} className="flex flex-col items-center justify-center min-h-[250px] max-w-xl bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-2xl w-full">
+            {/* CAMBIO: Se amplió el max-w-xl a max-w-2xl para dar holgura a los 8 slots */}
+            <form onSubmit={handleSubmit} className="flex flex-col items-center justify-center min-h-[250px] max-w-2xl bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-2xl w-full">
                 <div className="mb-6 text-center">
                     <h3 className="text-lg font-medium text-zinc-100 tracking-wide">
                         Verificación de Seguridad
                     </h3>
+                    {/* CAMBIO: Texto descriptivo actualizado a 8 dígitos */}
                     <p className="text-xs text-zinc-400 mt-1">
-                        Introduce el código de 6 dígitos enviado a tu correo ({email})
+                        Introduce el código de 8 dígitos enviado a tu correo ({email})
                     </p>
                 </div>
 
@@ -126,7 +132,8 @@ export default function InputOTPInvalid() {
                     </p>
                 )}
 
-                <InputOTP maxLength={6} value={value} onChange={setValue} className="gap-3">
+                {/* CAMBIO: maxLength ahora es 8 y se reestructuraron los grupos a pares (2-2-2-2) */}
+                <InputOTP maxLength={8} value={value} onChange={setValue} className="gap-3">
                     <InputOTPGroup className="gap-2.5">
                         <InputOTPSlot index={0} aria-invalid={isVerifyOtpError} className={slotClassName} />
                         <InputOTPSlot index={1} aria-invalid={isVerifyOtpError} className={slotClassName} />
@@ -146,12 +153,19 @@ export default function InputOTPInvalid() {
                         <InputOTPSlot index={5} aria-invalid={isVerifyOtpError} className={slotClassName} />
                     </InputOTPGroup>
 
+                    <InputOTPSeparator className="text-zinc-600 font-light mx-1" />
+
+                    <InputOTPGroup className="gap-2.5">
+                        <InputOTPSlot index={6} aria-invalid={isVerifyOtpError} className={slotClassName} />
+                        <InputOTPSlot index={7} aria-invalid={isVerifyOtpError} className={slotClassName} />
+                    </InputOTPGroup>
                 </InputOTP>
 
+                {/* CAMBIO: Deshabilitar el botón si la longitud no es exactamente 8 */}
                 <Button
                     type="submit"
                     variant="primary"
-                    disabled={isVerifyingOtp || isVerifyCooldownActive || !email || value.length !== 6}
+                    disabled={isVerifyingOtp || isVerifyCooldownActive || !email || value.length !== 8}
                     className="mt-6 w-full h-12 rounded-xl text-sm font-medium tracking-wide"
                 >
                     <span className="text-sm font-medium text-zinc-100 tracking-wide">

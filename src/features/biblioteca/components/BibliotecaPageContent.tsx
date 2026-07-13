@@ -24,7 +24,12 @@ function formatDate(dateValue: string) {
     return date.format('D [de] MMMM [de] YYYY');
 }
 
-export function BibliotecaPageContent({ filters }: BibliotecaPageContentProps) {
+export function BibliotecaPageContent({ filters}: BibliotecaPageContentProps ) {
+    // const { data, isLoading, isError } = useQuery({
+    //     queryKey: ['notebooks', 100, 0],
+    //     queryFn: () => notebookService.getNotebooks({ limit: 100, offset: 0 }),
+    // });
+
     const { data, isLoading, isError } = useQuery({
         queryKey: ['notebooks', 100, 0],
         queryFn: () => notebookService.getNotebooks({ limit: 100, offset: 0 }),
