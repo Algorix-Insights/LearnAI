@@ -23,7 +23,10 @@ type FlashcardsStudyDialogProps = {
   flashcards: Flashcard[];
   isLoading?: boolean;
   isError?: boolean;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
   onRetry?: () => void;
+  onLoadMore?: () => Promise<unknown>;
 };
 
 export default function FlashcardsStudyDialog({
@@ -31,7 +34,10 @@ export default function FlashcardsStudyDialog({
   flashcards,
   isLoading = false,
   isError = false,
+  hasMore = false,
+  isLoadingMore = false,
   onRetry,
+  onLoadMore,
 }: FlashcardsStudyDialogProps) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -46,6 +52,16 @@ export default function FlashcardsStudyDialog({
   const moveTo = (index: number) => {
     setIsFlipped(false);
     setCurrentIndex(index);
+  };
+
+  const moveNext = async () => {
+    if (safeIndex < flashcards.length - 1) {
+      moveTo(safeIndex + 1);
+      return;
+    }
+    if (!hasMore || !onLoadMore || isLoadingMore) return;
+    await onLoadMore();
+    moveTo(safeIndex + 1);
   };
 
   const finishStudySession = () => {
@@ -205,10 +221,13 @@ export default function FlashcardsStudyDialog({
                   <Button
                     type="button"
                     variant="pageAccent"
-                    disabled={safeIndex === flashcards.length - 1}
-                    onClick={() => moveTo(safeIndex + 1)}
+                    disabled={(safeIndex === flashcards.length - 1 && !hasMore) || isLoadingMore}
+                    onClick={() => void moveNext()}
                   >
-                    Siguiente <ArrowRight className="size-4" />
+                    {safeIndex === flashcards.length - 1 && hasMore
+                      ? isLoadingMore ? 'Cargando…' : 'Cargar más'
+                      : 'Siguiente'}
+                    <ArrowRight className="size-4" />
                   </Button>
                 </div>
               </div>

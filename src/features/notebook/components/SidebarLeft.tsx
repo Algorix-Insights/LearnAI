@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, type UIEvent } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useCountdown } from '@/hooks/use-countdown';
 import { RagService } from '@/services/Rag';
 import { ApiClientError } from '@/services/api';
-import type { FlashcardListResponse, Notebook } from '@/services/contracts';
+import type { Notebook } from '@/services/contracts';
 
 import DueDateCard from './DueDateCard';
 import ResourcesSection from './ResourcesSection';
@@ -22,22 +22,6 @@ type SidebarLeftProps = {
   closeButtonRef?: React.Ref<HTMLButtonElement>;
 };
 
-async function listNotebookFlashcards(notebookId: string): Promise<FlashcardListResponse> {
-  const limit = 100;
-  const maxFlashcards = 1000;
-  const flashcards: FlashcardListResponse['data'] = [];
-  let offset = 0;
-
-  while (offset < maxFlashcards) {
-    const page = await RagService.listFlashcards(notebookId, { limit, offset });
-    flashcards.push(...page.data);
-    if (page.data.length < limit) break;
-    offset += limit;
-  }
-
-  return { data: flashcards, limit, offset: 0 };
-}
-
 export default function SidebarLeft({ notebookId, notebook, onClose, closeButtonRef }: SidebarLeftProps) {
   const queryClient = useQueryClient();
   const [showTopMask, setShowTopMask] = useState(false);
@@ -48,10 +32,15 @@ export default function SidebarLeft({ notebookId, notebook, onClose, closeButton
     queryKey: ['notebooks', notebookId, 'documents'],
     queryFn: () => RagService.listDocuments(notebookId, { limit: 100, offset: 0 }),
   });
-  const flashcardsQuery = useQuery({
+  const flashcardsQuery = useInfiniteQuery({
     queryKey: ['notebooks', notebookId, 'flashcards'],
-    queryFn: () => listNotebookFlashcards(notebookId),
+    queryFn: ({ pageParam }) => RagService.listFlashcards(notebookId, { limit: 100, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.data.length < lastPage.limit
+      ? undefined
+      : lastPage.offset + lastPage.limit,
   });
+  const flashcards = flashcardsQuery.data?.pages.flatMap((page) => page.data) ?? [];
   const uploadDocument = useMutation({
     mutationFn: (file: File) => RagService.uploadDocument(notebookId, { file }),
     onSuccess: async () => {
@@ -125,16 +114,19 @@ export default function SidebarLeft({ notebookId, notebook, onClose, closeButton
         />
         <ResourcesSection
           notebookId={notebookId}
-          resources={flashcardsQuery.data?.data ?? []}
+          resources={flashcards}
           canGenerate={hasProcessedSources}
           isSourceLoading={documentsQuery.isPending}
           isLoading={flashcardsQuery.isPending}
           isListError={flashcardsQuery.isError}
+          hasMore={flashcardsQuery.hasNextPage}
+          isLoadingMore={flashcardsQuery.isFetchingNextPage}
           isGenerating={generateFlashcards.isPending || flashcardCooldown.isActive}
           retryAfterSeconds={flashcardCooldown.remainingSeconds}
           error={resourceError instanceof Error ? resourceError.message : null}
           onGenerate={() => generateFlashcards.mutate()}
           onRetry={() => void flashcardsQuery.refetch()}
+          onLoadMore={() => flashcardsQuery.fetchNextPage()}
         />
       </div>
     </aside>

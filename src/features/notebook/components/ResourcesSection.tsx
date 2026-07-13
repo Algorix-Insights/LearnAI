@@ -14,11 +14,14 @@ type ResourcesSectionProps = {
   isSourceLoading?: boolean;
   isLoading?: boolean;
   isListError?: boolean;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
   isGenerating?: boolean;
   retryAfterSeconds?: number;
   error?: string | null;
   onGenerate: () => void;
   onRetry?: () => void;
+  onLoadMore?: () => Promise<unknown>;
 };
 
 export default function ResourcesSection({
@@ -28,11 +31,14 @@ export default function ResourcesSection({
   isSourceLoading = false,
   isLoading = false,
   isListError = false,
+  hasMore = false,
+  isLoadingMore = false,
   isGenerating = false,
   retryAfterSeconds = 0,
   error,
   onGenerate,
   onRetry,
+  onLoadMore,
 }: ResourcesSectionProps) {
   return (
     <CollapsibleCard
@@ -40,7 +46,7 @@ export default function ResourcesSection({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <Star className="size-5 text-[#7452F5]" />
-            <span>Flashcards ({resources.length})</span>
+            <span>Flashcards ({resources.length} cargadas)</span>
           </div>
         </div>
       }
@@ -74,7 +80,10 @@ export default function ResourcesSection({
             flashcards={resources}
             isLoading={isLoading}
             isError={isListError}
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
             onRetry={onRetry}
+            onLoadMore={onLoadMore}
           />
           {error ? <p className="text-xs text-rose-600" role="alert">{error}</p> : null}
           {isLoading ? (
