@@ -8,10 +8,17 @@ import { useMutation } from '@tanstack/react-query';
 import { AuthService } from '@/services/Auth';
 import { useRouter } from 'next/navigation';
 import { SignInFormData, signInSchema } from '@/features/auth/signIn';
-import { storePendingOtpEmail } from '@/lib/auth-client';
+import { getAuthToken, storePendingOtpEmail } from '@/lib/auth-client';
+import { useEffect } from 'react';
 
 export default function LoginPage() {
 	const router = useRouter();
+
+	useEffect(() => {
+		if (getAuthToken()) {
+			router.replace('/home');
+		}
+	}, [router]);
 
 	const {
 		register,
