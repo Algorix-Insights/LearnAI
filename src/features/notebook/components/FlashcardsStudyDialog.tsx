@@ -172,12 +172,18 @@ export default function FlashcardsStudyDialog({
                     aria-pressed={isFlipped}
                     aria-label={isFlipped ? 'Mostrar pregunta' : 'Mostrar respuesta'}
                   >
-                    <span className="absolute inset-0 flex flex-col justify-between overflow-y-auto rounded-[1.5rem] border border-[#7452F5]/20 bg-[radial-gradient(circle_at_top_right,rgba(116,82,245,0.13),transparent_38%),white] p-6 shadow-[0_24px_60px_rgba(116,82,245,0.1)] [backface-visibility:hidden] sm:p-8">
+                    <span
+                      aria-hidden={isFlipped}
+                      className="absolute inset-0 flex flex-col justify-between overflow-y-auto rounded-[1.5rem] border border-[#7452F5]/20 bg-[radial-gradient(circle_at_top_right,rgba(116,82,245,0.13),transparent_38%),white] p-6 shadow-[0_24px_60px_rgba(116,82,245,0.1)] [backface-visibility:hidden] sm:p-8"
+                    >
                       <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#6545da]">Pregunta</span>
                       <span className="my-8 text-center text-xl font-medium leading-8 text-slate-900 sm:text-2xl">{currentCard.question}</span>
                       <span className="inline-flex items-center justify-center gap-2 text-xs text-slate-400"><RotateCcw className="size-3.5" /> Toca para ver la respuesta</span>
                     </span>
-                    <span className="absolute inset-0 flex flex-col justify-between overflow-y-auto rounded-[1.5rem] border border-emerald-200 bg-[radial-gradient(circle_at_top_right,rgba(35,215,194,0.16),transparent_40%),white] p-6 shadow-[0_24px_60px_rgba(35,215,194,0.1)] [backface-visibility:hidden] [transform:rotateY(180deg)] sm:p-8">
+                    <span
+                      aria-hidden={!isFlipped}
+                      className="absolute inset-0 flex flex-col justify-between overflow-y-auto rounded-[1.5rem] border border-emerald-200 bg-[radial-gradient(circle_at_top_right,rgba(35,215,194,0.16),transparent_40%),white] p-6 shadow-[0_24px_60px_rgba(35,215,194,0.1)] [backface-visibility:hidden] [transform:rotateY(180deg)] sm:p-8"
+                    >
                       <span className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Respuesta</span>
                       <span className="my-8 text-center text-lg font-medium leading-8 text-slate-800 sm:text-xl">{currentCard.answer}</span>
                       <span className="inline-flex items-center justify-center gap-2 text-xs text-slate-400"><RotateCcw className="size-3.5" /> Toca para volver a la pregunta</span>
