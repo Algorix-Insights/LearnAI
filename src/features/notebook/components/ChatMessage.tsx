@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { Check, Copy, Sparkles } from 'lucide-react';
+import dynamic from 'next/dynamic';
 
 import type { Message } from '@/services/contracts';
 
-import MarkdownMessage from './MarkdownMessage';
+const MarkdownMessage = dynamic(() => import('./MarkdownMessage'), {
+  loading: () => <span className="text-slate-400">Formateando respuesta…</span>,
+});
 
 type ChatMessageProps = {
   message: Message;
