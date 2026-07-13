@@ -1,6 +1,6 @@
 # Cliente de la API
 
-La integración vive en `src/services`. Todos los servicios usan el mismo cliente Axios, agregan el JWT de la cookie `learnai_auth_token` y normalizan errores en `ApiClientError`.
+La integración vive en `src/services`. Todos los servicios usan el mismo cliente Axios, agregan el JWT guardado en `sessionStorage` y normalizan errores en `ApiClientError`.
 
 ## Configuración
 
@@ -43,7 +43,24 @@ docker build \
 
 Los recursos individuales regresan el objeto ya extraído de `{ data }`. Los listados conservan `{ data, limit, offset }`. Chat y generaciones conservan `{ data, sources }` para no perder citas.
 
-Estos servicios están diseñados para Client Components y hooks: usan `/backend` relativo y leen la cookie desde `document`. No los importes directamente en Server Components o Server Actions; para ese caso crea un adaptador server-side que lea `cookies()` y use una URL absoluta.
+Estos servicios están diseñados para Client Components y hooks: usan `/backend` relativo y leen `sessionStorage`. No los importes directamente en Server Components o Server Actions. Un futuro flujo SSR debe usar un BFF de Next.js con cookies `HttpOnly` y una URL absoluta.
+
+## Autenticación
+
+El backend no crea cookies ni mantiene sesión. Login, registro y verificación OTP devuelven tokens JSON; el interceptor agrega `Authorization: Bearer <access_token>` a cada ruta protegida.
+
+- `saveSession()` guarda `access_token`, `refresh_token`, sesión y expiración en `sessionStorage`.
+- `AuthProvider` restaura cada recarga de la pestaña con `GET /auth/me` antes de mostrar contenido protegido.
+- Usuario autenticado significa `Boolean(access_token)` y `/auth/me` válido; un objeto `user` sin token no autentica.
+- Registro sin contraseña inicia OTP. Login OTP usa `should_create_user: false`.
+- Recuperación verifica OTP con `type: "recovery"` y envía ese token solo a `/auth/reset-password`.
+- Logout borra siempre almacenamiento y caché local, aunque falle `/auth/logout`.
+- No uses `withCredentials`; backend no usa cookies.
+- Nunca envíes `user_id` o `created_by`; identidad sale del JWT y RLS.
+
+`AuthProvider` evita mostrar rutas protegidas antes de restaurar sesión, pero es un guard cliente: no coloques datos sensibles en Server Components confiando solo en él. Autorización real sigue en backend mediante JWT, usuario activo y RLS.
+
+No existe `/auth/refresh` todavía. `refresh_token` se conserva para compatibilidad futura, pero al expirar `access_token` usuario debe entrar de nuevo. `sessionStorage` vive por pestaña; una pestaña nueva empieza sin sesión.
 
 ## Ejemplos
 
@@ -113,7 +130,10 @@ try {
 ```
 
 - `401` elimina la sesión vencida y redirige a login.
+- `403` indica usuario suspendido o falta de permisos.
+- `422` indica payload inválido; revisa `validationErrors`.
 - `429` expone `retryAfterSeconds`; deshabilita la acción durante ese tiempo.
+- `503` indica que Supabase Auth no está disponible temporalmente.
 - Upload RAG y avatar usan timeout de 120 segundos; chat, generación y calificación IA usan 180 segundos.
 - Nunca envíes `user_id`, `created_by`, ownership, `score` o `is_correct`; el backend los deriva del JWT o los calcula.
 - No persistas la URL firmada del avatar; solicita otra cuando expire.

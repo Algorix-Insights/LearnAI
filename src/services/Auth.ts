@@ -49,10 +49,14 @@ export const AuthService = {
 
   resetPassword: async (
     payload: AuthUpdatePasswordPayload,
+    accessToken?: string,
   ): Promise<AuthMessage> => {
     const response = await api.post<AuthMessageResponse>(
       `${route}/reset-password`,
       payload,
+      accessToken
+        ? { headers: { Authorization: `Bearer ${accessToken}` } }
+        : undefined,
     );
     return unwrapData(response.data);
   },

@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
+import { AuthProvider } from '@/features/auth/AuthProvider';
+import { AUTH_SESSION_EVENT, AUTH_UNAUTHORIZED_EVENT } from '@/lib/auth';
+import { getStoredSession } from '@/lib/auth-client';
 import { ApiClientError } from '@/services/api';
 
 function shouldRetry(failureCount: number, error: unknown) {
@@ -19,7 +21,6 @@ function shouldRetry(failureCount: number, error: unknown) {
 }
 
 export default function Providers({ children }: Readonly<{ children: React.ReactNode }>) {
-  const router = useRouter();
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -39,19 +40,22 @@ export default function Providers({ children }: Readonly<{ children: React.React
   useEffect(() => {
     const handleUnauthorized = () => {
       queryClient.clear();
-      router.replace('/login');
-      router.refresh();
+    };
+    const handleSessionChanged = () => {
+      if (!getStoredSession()) queryClient.clear();
     };
 
-    window.addEventListener('learnai:unauthorized', handleUnauthorized);
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+    window.addEventListener(AUTH_SESSION_EVENT, handleSessionChanged);
     return () => {
-      window.removeEventListener('learnai:unauthorized', handleUnauthorized);
+      window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+      window.removeEventListener(AUTH_SESSION_EVENT, handleSessionChanged);
     };
-  }, [queryClient, router]);
+  }, [queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <AuthProvider>{children}</AuthProvider>
       {process.env.NODE_ENV === 'development' ? (
         <ReactQueryDevtools initialIsOpen={false} />
       ) : null}

@@ -5,16 +5,22 @@ import { Button } from "@/components/Button"
 import { useMutation } from "@tanstack/react-query"
 import { AuthService } from "@/services/Auth"
 import { useEffect, useState } from "react"
-import { clearPendingOtpSession, getAuthToken, getPendingOtpEmail, storeAuthToken } from "@/lib/auth-client"
+import {
+    clearPendingOtpSession,
+    getPendingAuthChallenge,
+    storePendingAuthChallenge,
+    type PendingAuthChallenge,
+} from "@/lib/auth-client"
 import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from "@/components/ui/input-otp"
 import { useCountdown } from "@/hooks/use-countdown"
 import { ApiClientError } from "@/services/api"
+import { establishSession } from "@/features/auth/session"
 
-const slotClassName = "w-12 h-14 bg-zinc-900 border-zinc-700/80 text-zinc-100 text-xl font-semibold rounded-xl shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:border-indigo-500 aria-invalid:border-rose-500/80 aria-invalid:bg-rose-950/20 aria-invalid:text-rose-200"
+const slotClassName = "h-11 w-8 rounded-lg border-zinc-700/80 bg-zinc-900 text-lg font-semibold text-zinc-100 shadow-sm transition-all duration-200 focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 aria-invalid:border-rose-500/80 aria-invalid:bg-rose-950/20 aria-invalid:text-rose-200 sm:h-14 sm:w-12 sm:rounded-xl sm:text-xl"
 
 export default function InputOTPInvalid() {
     const [value, setValue] = useState("")
-    const [email, setEmail] = useState('')
+    const [challenge, setChallenge] = useState<PendingAuthChallenge | null>(null)
     const router = useRouter()
     const {
         isActive: isResendCooldownActive,
@@ -28,20 +34,22 @@ export default function InputOTPInvalid() {
     } = useCountdown()
 
     useEffect(() => {
-        const authToken = getAuthToken()
-        if (authToken) {
-            router.replace('/home')
+        const pendingChallenge = getPendingAuthChallenge()
+        if (!pendingChallenge) {
+            router.replace('/login')
             return
         }
 
-        const storedEmail = getPendingOtpEmail()
-        if (storedEmail) {
-            setEmail(storedEmail)
-            startResendCooldown(60)
+        if (
+            pendingChallenge.intent === 'recovery' ||
+            pendingChallenge.type === 'recovery'
+        ) {
+            router.replace('/reset-password')
             return
         }
 
-        router.replace('/login')
+        setChallenge(pendingChallenge)
+        startResendCooldown(60)
     }, [router, startResendCooldown])
 
     const {
@@ -53,6 +61,13 @@ export default function InputOTPInvalid() {
         mutationFn: AuthService.sendOtp,
         onSuccess: () => {
             setValue('')
+            if (challenge) {
+                storePendingAuthChallenge({
+                    email: challenge.email,
+                    intent: challenge.intent,
+                    type: challenge.type,
+                })
+            }
             startResendCooldown(60)
         },
         onError: (error) => {
@@ -67,16 +82,17 @@ export default function InputOTPInvalid() {
         isPending: isVerifyingOtp,
         isError: isVerifyOtpError,
         error: verifyOtpError,
+        reset: resetVerification,
     } = useMutation({
         mutationFn: async (payload: Parameters<typeof AuthService.verifyOtp>[0]) => {
             const session = await AuthService.verifyOtp(payload)
             if (!session.access_token) {
                 throw new Error('La API no devolvió una sesión válida.')
             }
-            return session
+            const verifiedSession = await establishSession(session)
+            return verifiedSession
         },
-        onSuccess: (data) => {
-            storeAuthToken(data.access_token, data.expires_in ?? undefined)
+        onSuccess: () => {
             clearPendingOtpSession()
             router.replace('/home')
         },
@@ -89,21 +105,39 @@ export default function InputOTPInvalid() {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        if (!email || value.length !== 6) {
+        if (
+            !challenge ||
+            value.length !== 6 ||
+            isVerifyingOtp ||
+            isResendingOtp ||
+            isVerifyCooldownActive
+        ) {
             return
         }
-        verifyOtp({ email, token: value })
+        verifyOtp({
+            email: challenge.email,
+            token: value,
+            type: challenge.type,
+        })
+    }
+
+    if (!challenge) {
+        return (
+            <div className="grid min-h-screen place-items-center text-sm text-slate-500" role="status">
+                Verificando código pendiente…
+            </div>
+        )
     }
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen w-full p-6">
-            <form onSubmit={handleSubmit} className="flex flex-col items-center justify-center min-h-[250px] max-w-xl bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-2xl w-full">
+        <div className="flex min-h-screen w-full flex-col items-center justify-center p-4 sm:p-6">
+            <form onSubmit={handleSubmit} className="flex min-h-[250px] w-full max-w-xl flex-col items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950 p-4 shadow-2xl sm:p-6">
                 <div className="mb-6 text-center">
-                    <h3 className="text-lg font-medium text-zinc-100 tracking-wide">
+                    <h1 className="text-lg font-medium text-zinc-100 tracking-wide">
                         Verificación de Seguridad
-                    </h3>
+                    </h1>
                     <p className="text-xs text-zinc-400 mt-1">
-                        Introduce el código de 6 dígitos enviado a tu correo ({email})
+                        Introduce el código de 6 dígitos enviado a tu correo ({challenge.email})
                     </p>
                 </div>
 
@@ -126,22 +160,31 @@ export default function InputOTPInvalid() {
                     </p>
                 )}
 
-                <InputOTP maxLength={6} value={value} onChange={setValue} className="gap-3">
-                    <InputOTPGroup className="gap-2.5">
+                <InputOTP
+                    maxLength={6}
+                    value={value}
+                    onChange={(nextValue) => {
+                        setValue(nextValue)
+                        if (isVerifyOtpError) resetVerification()
+                    }}
+                    aria-label="Código de verificación"
+                    className="gap-1 sm:gap-3"
+                >
+                    <InputOTPGroup className="gap-1 sm:gap-2.5">
                         <InputOTPSlot index={0} aria-invalid={isVerifyOtpError} className={slotClassName} />
                         <InputOTPSlot index={1} aria-invalid={isVerifyOtpError} className={slotClassName} />
                     </InputOTPGroup>
 
-                    <InputOTPSeparator className="text-zinc-600 font-light mx-1" />
+                    <InputOTPSeparator className="mx-0 hidden font-light text-zinc-600 sm:flex" />
 
-                    <InputOTPGroup className="gap-2.5">
+                    <InputOTPGroup className="gap-1 sm:gap-2.5">
                         <InputOTPSlot index={2} aria-invalid={isVerifyOtpError} className={slotClassName} />
                         <InputOTPSlot index={3} aria-invalid={isVerifyOtpError} className={slotClassName} />
                     </InputOTPGroup>
 
-                    <InputOTPSeparator className="text-zinc-600 font-light mx-1" />
+                    <InputOTPSeparator className="mx-0 hidden font-light text-zinc-600 sm:flex" />
 
-                    <InputOTPGroup className="gap-2.5">
+                    <InputOTPGroup className="gap-1 sm:gap-2.5">
                         <InputOTPSlot index={4} aria-invalid={isVerifyOtpError} className={slotClassName} />
                         <InputOTPSlot index={5} aria-invalid={isVerifyOtpError} className={slotClassName} />
                     </InputOTPGroup>
@@ -151,7 +194,7 @@ export default function InputOTPInvalid() {
                 <Button
                     type="submit"
                     variant="primary"
-                    disabled={isVerifyingOtp || isVerifyCooldownActive || !email || value.length !== 6}
+                    disabled={isVerifyingOtp || isResendingOtp || isVerifyCooldownActive || value.length !== 6}
                     className="mt-6 w-full h-12 rounded-xl text-sm font-medium tracking-wide"
                 >
                     <span className="text-sm font-medium text-zinc-100 tracking-wide">
@@ -165,9 +208,13 @@ export default function InputOTPInvalid() {
 
                 <button
                     type="button"
-                    disabled={isResendingOtp || isResendCooldownActive || !email}
-                    onClick={() => resendOtp({ email })}
+                    disabled={isResendingOtp || isVerifyingOtp || isResendCooldownActive}
+                    onClick={() => resendOtp({
+                        email: challenge.email,
+                        should_create_user: false,
+                    })}
                     className="mt-4 text-sm font-medium text-indigo-300 transition hover:text-indigo-200 disabled:cursor-not-allowed disabled:text-zinc-500"
+                    aria-live="polite"
                 >
                     {isResendingOtp
                         ? 'Reenviando…'

@@ -1,7 +1,8 @@
 import axios from 'axios';
 import type { AxiosError, AxiosInstance } from 'axios';
 
-import { AUTH_COOKIE } from '@/lib/auth';
+import { AUTH_UNAUTHORIZED_EVENT } from '@/lib/auth';
+import { clearAuthSession, getAccessToken } from '@/lib/auth-client';
 
 export const API_BASE_URL = '/backend';
 
@@ -50,28 +51,45 @@ export class ApiClientError extends Error {
   }
 }
 
-function getAuthTokenFromCookie(): string | null {
-  if (typeof document === 'undefined') return null;
-
-  const cookieValue = document.cookie
-    .split('; ')
-    .find((entry) => entry.startsWith(`${AUTH_COOKIE}=`))
-    ?.slice(`${AUTH_COOKIE}=`.length);
-
-  return cookieValue ? decodeURIComponent(cookieValue) : null;
-}
-
-function clearExpiredAuthCookie() {
+function clearExpiredAuthSession() {
   if (typeof document === 'undefined') return;
 
-  document.cookie = `${AUTH_COOKIE}=; path=/; max-age=0; samesite=lax`;
-  window.dispatchEvent(new Event('learnai:unauthorized'));
+  clearAuthSession();
+  window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT));
 }
 
 function isPublicAuthRequest(error: unknown) {
   if (!axios.isAxiosError(error)) return false;
   const requestPath = error.config?.url?.split('?')[0];
   return requestPath ? PUBLIC_AUTH_PATHS.has(requestPath) : false;
+}
+
+function getRequestBearerToken(error: unknown) {
+  if (!axios.isAxiosError(error)) return null;
+
+  const headers = error.config?.headers as
+    | {
+        get?: (name: string) => unknown;
+        Authorization?: unknown;
+        authorization?: unknown;
+      }
+    | undefined;
+  const value =
+    (typeof headers?.get === 'function'
+      ? headers.get('Authorization')
+      : undefined) ??
+    headers?.Authorization ??
+    headers?.authorization;
+
+  if (typeof value !== 'string') return null;
+  const match = value.match(/^Bearer\s+(.+)$/i);
+  return match?.[1] ?? null;
+}
+
+function requestUsesCurrentSession(error: unknown) {
+  const requestToken = getRequestBearerToken(error);
+  const currentToken = getAccessToken();
+  return Boolean(requestToken && currentToken && requestToken === currentToken);
 }
 
 function parseRetryAfter(value: unknown): number | null {
@@ -141,9 +159,9 @@ export const api: AxiosInstance = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = getAuthTokenFromCookie();
+  const token = getAccessToken();
 
-  if (token) {
+  if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
@@ -155,8 +173,12 @@ api.interceptors.response.use(
   (error: unknown) => {
     const apiError = toApiClientError(error);
 
-    if (apiError.status === 401 && !isPublicAuthRequest(error)) {
-      clearExpiredAuthCookie();
+    if (
+      apiError.status === 401 &&
+      !isPublicAuthRequest(error) &&
+      requestUsesCurrentSession(error)
+    ) {
+      clearExpiredAuthSession();
     }
 
     return Promise.reject(apiError);

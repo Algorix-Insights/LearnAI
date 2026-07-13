@@ -2,7 +2,6 @@ import SidebarLeft from '@/features/notebook/components/SidebarLeft';
 import NotebookHeader from '@/features/notebook/components/NotebookHeader';
 import NotebookTabsSection from '@/features/notebook/components/NotebookTabsSection';
 import NotebookWelcomeSection from '@/features/notebook/components/NotebookWelcomeSection';
-import { requireAuth } from '@/lib/require-auth';
 
 type NotebookPageProps = {
     params: Promise<{
@@ -13,7 +12,6 @@ type NotebookPageProps = {
 const quickActions = ['Flashcards', 'Examen V/F', 'Opción multiple', 'Preguntas abiertas'];
 
 export default async function NotebookPage({ params }: NotebookPageProps) {
-    await requireAuth();
     const { id } = await params;
 
     return (

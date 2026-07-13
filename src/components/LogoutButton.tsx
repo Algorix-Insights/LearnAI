@@ -15,7 +15,6 @@ export function LogoutButton() {
       clearAuthSession();
       queryClient.clear();
       router.replace('/login');
-      router.refresh();
     },
   });
 
