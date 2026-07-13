@@ -1,3 +1,6 @@
+import type { PaginationParams } from '@/services/contracts';
+import { TagService } from '@/services/Tag';
+export { TagService, tagService } from '@/services/Tag';
 import { api } from '@/services/api';
 
 export const notebookTagService = {
@@ -19,5 +22,6 @@ export const notebookTagService = {
             throw error;
         }
     },
-
+    attachTagToNotebook: TagService.attachToNotebook,
+    detachTagFromNotebook: TagService.detachFromNotebook,
 };

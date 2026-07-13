@@ -67,7 +67,6 @@ export default function TagInput({
         );
     }, [responseData]);
 
-    // 2. Mutación para crear nueva etiqueta
     const {
         mutate: createNotebookTag,
         isPending: isCreatingTag,

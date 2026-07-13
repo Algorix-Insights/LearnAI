@@ -1,16 +1,17 @@
 export type HighlightCard = {
+  id: string;
   title: string;
   label: string;
   dueText: string;
-  sources: string;
-  accent: string;
+  detail: string;
 };
 
 export type NotebookItem = {
+  id: string;
   title: string;
   category: string;
   lastSeen: string;
-  sources: string;
+  detail: string;
   dueDate: string;
   status?: string;
 };

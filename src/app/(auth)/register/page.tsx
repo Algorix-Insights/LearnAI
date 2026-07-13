@@ -8,7 +8,12 @@ import { Button } from '@/components/Button';
 import { useMutation } from '@tanstack/react-query';
 import { AuthService } from '@/services/Auth';
 import { useRouter } from 'next/navigation';
-import { getAuthToken, storePendingOtpEmail } from '@/lib/auth-client';
+import {
+    clearPendingOtpSession,
+    getAuthToken,
+    storeAuthToken,
+    storePendingOtpEmail,
+} from '@/lib/auth-client';
 import { useEffect } from 'react';
 
 export default function RegisterPage() {
@@ -29,34 +34,29 @@ export default function RegisterPage() {
     });
 
     const {
-        mutate: sendOtp,
-        isPending: isSendingOtp,
-    } = useMutation({
-        mutationFn: AuthService.sendOtp,
-        onSuccess: () => {
-            router.push('/otp');
-        }
-    });
-
-    const {
         mutate: registerUser,
         isPending: isRegistering,
         isError: isRegisterError,
-        isSuccess: isRegisterSuccess
+        error: registerError,
     } = useMutation({
         mutationFn: AuthService.register,
-        onSuccess: (_data, variables) => {
-            const userEmail = variables.email;
-            storePendingOtpEmail(userEmail);
+        onSuccess: (data, variables) => {
+            if (data.access_token) {
+                storeAuthToken(data.access_token, data.expires_in ?? undefined);
+                clearPendingOtpSession();
+                router.replace('/home');
+                return;
+            }
 
-            sendOtp({ email: userEmail, shouldCreateUser: true });
+            storePendingOtpEmail(variables.email);
+            router.push('/otp');
         }
     });
 
     const onSubmit = (data: SignUpFormData) => {
         registerUser({
             name: data.name,
-            lastname: data.lastname,
+            last_name: data.lastname,
             email: data.email,
             password: data.password
         });
@@ -99,16 +99,10 @@ export default function RegisterPage() {
 
                     {
                         isRegisterError && (
-                            <p className="mt-2 text-sm text-red-500">
-                                Error al registrar el usuario. Por favor, inténtalo de nuevo.
-                            </p>
-                        )
-                    }
-
-                    {
-                        isRegisterSuccess && (
-                            <p className="mt-2 text-sm text-green-500">
-                                Usuario registrado exitosamente. Por favor, inicia sesión.
+                            <p className="mt-2 text-sm text-red-500" role="alert">
+                                {registerError instanceof Error
+                                    ? registerError.message
+                                    : 'Error al registrar el usuario. Por favor, inténtalo de nuevo.'}
                             </p>
                         )
                     }
@@ -164,10 +158,10 @@ export default function RegisterPage() {
                         <Button
                             type="submit"
                             variant="primary"
-                            disabled={isRegistering || isSendingOtp}
+                            disabled={isRegistering}
                             className="mt-1 w-full"
                         >
-                            {isRegistering || isSendingOtp ? 'Procesando...' : 'Registrarse'}
+                            {isRegistering ? 'Procesando...' : 'Registrarse'}
                         </Button>
                     </form>
 
