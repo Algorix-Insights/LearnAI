@@ -12,10 +12,12 @@ npm run dev
 `LEARNIA_API_BASE_URL` debe contener la URL completa, incluido `/api/v1`:
 
 ```dotenv
-LEARNIA_API_BASE_URL=http://127.0.0.1:8000/api/v1
+LEARNIA_API_BASE_URL=https://learnaiapi.algorixinsights.com/api/v1
 ```
 
-En `next dev`, la ausencia de la variable usa `http://127.0.0.1:8000/api/v1`; en builds de producción usa la API productiva. Configúrala explícitamente antes de `next build` para no depender de ese valor por defecto. Next expone el API por `/backend/*`, evitando depender de CORS y manteniendo el host real fuera del bundle del navegador. La variable configura una URL, no una credencial: tampoco guardes service-role keys ahí.
+Sin variable, Next usa la API productiva. Para backend local, cambia el valor a `http://127.0.0.1:8000/api/v1`. Configúrala explícitamente antes de `next build` para no depender del valor por defecto. Next expone el API por `/backend/*`, evitando depender de CORS y manteniendo el host real fuera del bundle del navegador. La variable configura una URL, no una credencial: tampoco guardes service-role keys ahí.
+
+Usa siempre `https://` con Railway. Su endpoint `http://` responde `301`; seguir ese redirect puede convertir un `POST` en `GET` y producir `405 Method Not Allowed` en `/auth/register`.
 
 Para Docker, el destino queda incorporado durante el build:
 
