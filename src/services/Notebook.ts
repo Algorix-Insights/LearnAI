@@ -1,60 +1,96 @@
-import axios from 'axios';
+import { api } from '@/services/api';
 
-const BASE_URL = '/api/v1/notebooks';
+const BASE_URL = '/notebooks';
+
+export type NotebookStatus = 'active' | 'inactive' | 'archived' | string;
+
+export type Notebook = {
+    notebook_id: string;
+    name: string;
+    description: string;
+    grade: number;
+    summary: string;
+    is_dominated: boolean;
+    is_favorite: boolean;
+    status: NotebookStatus;
+    spent_time: number;
+    last_seen_at: string;
+    due_date: string;
+};
+
+export type NotebookListParams = {
+    limit?: number;
+    offset?: number;
+};
+
+export type NotebookListResponse = {
+    data: Notebook[];
+    limit: number;
+    offset: number;
+};
+
+export type CreateNotebookPayload = {
+    name: string;
+    description: string;
+    grade: number;
+    summary: string;
+    is_dominated: boolean;
+    is_favorite: boolean;
+    status: NotebookStatus;
+    spent_time: number;
+    last_seen_at: string;
+    due_date: string;
+};
+
+export type NotebookResponse = {
+    data: Notebook;
+};
+
+function buildQueryParams(params?: NotebookListParams) {
+    const searchParams = new URLSearchParams();
+
+    if (typeof params?.limit === 'number') {
+        searchParams.set('limit', String(params.limit));
+    }
+
+    if (typeof params?.offset === 'number') {
+        searchParams.set('offset', String(params.offset));
+    }
+
+    return searchParams.toString();
+}
 
 export const notebookService = {
-    // GET /api/v1/notebooks
-    getNotebooks: async () => {
-        try {
-            const response = await axios.get(BASE_URL);
-            return response.data;
-        } catch (error) {
-            console.error('Error fetching notebooks:', error);
-            throw error;
-        }
+    async getNotebooks(params?: NotebookListParams) {
+        const query = buildQueryParams(params);
+        const response = await api.get<NotebookListResponse>(`${BASE_URL}${query ? `?${query}` : ''}`);
+        return response.data;
     },
 
-    // POST /api/v1/notebooks
-    createNotebook: async (notebookData: { title: string; description?: string }) => {
-        try {
-            const response = await axios.post(BASE_URL, notebookData);
-            return response.data;
-        } catch (error) {
-            console.error('Error creating notebook:', error);
-            throw error;
-        }
+    async createNotebook(notebookData: {
+        name: string;
+        dueDate: string;
+    }) {
+        const { name, dueDate: due_date } = notebookData;
+        const last_seen_at = new Date().toISOString();
+        const response = await api.post<NotebookResponse>(BASE_URL, {
+            name,
+            due_date,
+            description: "",
+            grade: 0,
+            summary: "",
+            is_dominated: false,
+            is_favorite: false,
+            status: "active",
+            spent_time: 0,
+            last_seen_at,
+        });
+        console.log('Notebook created:', response.data);
+        return response.data;
     },
 
-    // GET /api/v1/notebooks/{notebook_id}
-    getNotebookById: async (notebookId: string | number) => {
-        try {
-            const response = await axios.get(`${BASE_URL}/${notebookId}`);
-            return response.data;
-        } catch (error) {
-            console.error(`Error fetching notebook with id ${notebookId}:`, error);
-            throw error;
-        }
+    async getNotebookById(notebookId: string) {
+        const response = await api.get<NotebookResponse>(`${BASE_URL}/${notebookId}`);
+        return response.data;
     },
-
-    // PATCH /api/v1/notebooks/{notebook_id}
-    updateNotebook: async (notebookId: string | number, updateData: Partial<{ title: string; description: string }>) => {
-        try {
-            const response = await axios.patch(`${BASE_URL}/${notebookId}`, updateData);
-            return response.data;
-        } catch (error) {
-            console.error(`Error updating notebook with id ${notebookId}:`, error);
-            throw error;
-        }
-    },
-
-    // DELETE /api/v1/notebooks/{notebook_id}
-    deleteNotebook: async (notebookId: string | number) => {
-        try {
-            const response = await axios.delete(`${BASE_URL}/${notebookId}`);
-            return response.data;
-        } catch (error) {
-            console.error(`Error deleting notebook with id ${notebookId}:`, error);
-            throw error;
-        }
-    }
 };

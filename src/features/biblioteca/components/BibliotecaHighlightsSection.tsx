@@ -5,6 +5,9 @@ type BibliotecaHighlightsSectionProps = {
 };
 
 export function BibliotecaHighlightsSection({ cards }: BibliotecaHighlightsSectionProps) {
+
+  if (cards.length === 0) return
+  
   return (
     <section className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

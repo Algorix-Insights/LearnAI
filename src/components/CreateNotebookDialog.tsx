@@ -6,11 +6,13 @@ import CreateNotebookIllustration from '@/assets/create-notebook-illustration.pn
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import type { FormEvent } from 'react';
-import { Plus } from "lucide-react"
+import { Plus } from "lucide-react";
 import { Dialog, DialogTrigger, DialogTitle, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import TagInput from '@/features/biblioteca/components/TagInput';
 import { InputText } from './InputText';
 import { InputDate } from './InputDate';
+import { notebookService } from '@/services/Notebook';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 type CreateCuadernoDialogProps = {
   triggerLabel?: string;
@@ -38,19 +40,27 @@ export function CreateNotebookDialog({
     selectedTag: 'General',
   });
 
-  const setNotebookField = (
-    field: keyof typeof notebookForm,
-    value: string | boolean,
-  ) => {
-    setNotebookForm((prevForm) => ({
-      ...prevForm,
-      [field]: value,
-    }));
-  }
+  const queryClient = useQueryClient();
+
+  const { mutate: createNotebook, isPending } = useMutation({
+    mutationFn: notebookService.createNotebook,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notebooks'] });
+    },
+  });
+
+  const setNotebookField = (field: keyof typeof notebookForm, value: string | boolean) => {
+    setNotebookForm((prev) => ({ ...prev, [field]: value }));
+  };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    console.log(notebookForm);
+    createNotebook({
+      name: notebookForm.name,
+      dueDate: notebookForm.studyDeadlineEnabled && notebookForm.studyDeadline
+        ? new Date(notebookForm.studyDeadline).toISOString()
+        : new Date().toISOString(),
+    });
   };
 
   return (
@@ -68,7 +78,7 @@ export function CreateNotebookDialog({
       <DialogContent
         style={{ maxWidth: '28rem', width: '90vw' }}
         showCloseButton={false}
-        className=" rounded-[2rem] border border-[color:var(--app-border)] bg-white p-0 shadow-[0_28px_80px_rgba(15,23,42,0.18)]"
+        className="rounded-[2rem] border border-[color:var(--app-border)] bg-white p-0 shadow-[0_28px_80px_rgba(15,23,42,0.18)]"
       >
         <div className="mt-6 flex flex-col gap-3 no-scrollbar max-h-[70vh] overflow-y-auto px-4">
           <Image
@@ -78,13 +88,9 @@ export function CreateNotebookDialog({
           />
 
           <div className="space-y-1.5 px-1">
-
-            <div>
-              <DialogTitle className="text-2xl font-semibold text-slate-900">Crear cuaderno</DialogTitle>
-            </div>
+            <DialogTitle className="text-2xl font-semibold text-slate-900">Crear cuaderno</DialogTitle>
 
             <form id="create-notebook-form" className="mt-6 space-y-5" onSubmit={handleSubmit}>
-
               <InputText
                 id="notebook-name"
                 label="Nombre del cuaderno"
@@ -97,47 +103,41 @@ export function CreateNotebookDialog({
 
               <InputDate
                 id="date-required"
-                label="Fecha limite de estudio"
+                label="Fecha límite de estudio"
                 enabledLabel="Activar fecha límite"
                 enabled={notebookForm.studyDeadlineEnabled}
                 value={notebookForm.studyDeadline}
                 onEnabledChange={(enabled) => {
-                  setNotebookForm((prevForm) => ({
-                    ...prevForm,
+                  setNotebookForm((prev) => ({
+                    ...prev,
                     studyDeadlineEnabled: enabled,
-                    studyDeadline: enabled ? prevForm.studyDeadline || todayInputValue : '',
+                    studyDeadline: enabled ? prev.studyDeadline || todayInputValue : '',
                   }));
                 }}
-                onValueChange={(studyDeadline) =>
-                  setNotebookField('studyDeadline', studyDeadline)
-                }
+                onValueChange={(studyDeadline) => setNotebookField('studyDeadline', studyDeadline)}
               />
             </form>
           </div>
         </div>
         <DialogFooter>
           <div className="flex flex-col-reverse gap-3 pb-4 pr-4 sm:flex-row sm:justify-end">
-            <DialogClose
-              render={
-                <Button variant="outline" size="default" className="h-12 rounded-full border-slate-200 px-5 text-slate-600" />
-              }
-            >
+            <DialogClose render={<Button variant="outline" size="default" className="h-12 rounded-full border-slate-200 px-5 text-slate-600" />}>
               Cancelar
             </DialogClose>
 
             <Button
               form="create-notebook-form"
               type="submit"
+              disabled={isPending}
               variant="default"
               size="default"
               className="h-12 rounded-full bg-[linear-gradient(135deg,var(--app-primary),var(--app-secondary))] px-6 text-white shadow-[0_16px_30px_rgba(116,82,245,0.24)] hover:bg-[linear-gradient(135deg,var(--app-primary),var(--app-secondary))]"
             >
-              Crear Notebook
+              {isPending ? 'Creando...' : 'Crear Notebook'}
             </Button>
           </div>
         </DialogFooter>
-      </DialogContent >
-    </Dialog >
-
+      </DialogContent>
+    </Dialog>
   );
 }
