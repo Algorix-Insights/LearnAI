@@ -103,7 +103,9 @@ export default function SidebarLeft({ notebookId, notebook }: SidebarLeftProps) 
           notebookId={notebookId}
           resources={flashcardsQuery.data?.data ?? []}
           canGenerate={hasProcessedSources}
+          isSourceLoading={documentsQuery.isPending}
           isLoading={flashcardsQuery.isPending}
+          isListError={flashcardsQuery.isError}
           isGenerating={generateFlashcards.isPending || flashcardCooldown.isActive}
           retryAfterSeconds={flashcardCooldown.remainingSeconds}
           error={resourceError instanceof Error ? resourceError.message : null}

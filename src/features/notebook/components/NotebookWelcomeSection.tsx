@@ -21,6 +21,7 @@ type NotebookWelcomeSectionProps = {
   isSendDisabled?: boolean;
   sendDisabledReason?: string;
   hasProcessedSources?: boolean;
+  isLoadingSources?: boolean;
   error?: string | null;
   statusMessage?: string | null;
   onSend: (content: string) => void;
@@ -42,6 +43,7 @@ export default function NotebookWelcomeSection({
   isSendDisabled = false,
   sendDisabledReason,
   hasProcessedSources = true,
+  isLoadingSources = false,
   error,
   statusMessage,
   onSend,
@@ -51,7 +53,6 @@ export default function NotebookWelcomeSection({
   isGenerating = false,
   onQuickAction,
 }: NotebookWelcomeSectionProps) {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -71,14 +72,16 @@ export default function NotebookWelcomeSection({
 
   useEffect(() => {
     if (isSending || isNearBottomRef.current) {
-      scrollToBottom(messages.length === 0 ? 'auto' : 'smooth');
+      messagesEndRef.current?.scrollIntoView({
+        behavior: messages.length === 0 ? 'auto' : 'smooth',
+        block: 'end',
+      });
     }
   }, [isSending, messages.length, pendingMessage]);
 
   return (
     <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[radial-gradient(circle_at_50%_0%,rgba(116,82,245,0.035),transparent_42%)]">
       <div
-        ref={scrollContainerRef}
         onScroll={handleScroll}
         className="min-h-0 flex-1 overflow-y-auto px-4 py-7 sm:px-6 sm:py-9"
       >
@@ -95,7 +98,7 @@ export default function NotebookWelcomeSection({
                 Pregunta sobre tus apuntes y conserva el contexto en esta conversación.
               </p>
               <NotebookQuickActions actions={actions} disabled={isGenerating || !hasProcessedSources} onAction={onQuickAction} />
-              {!hasProcessedSources ? (
+              {!hasProcessedSources && !isLoadingSources ? (
                 <p className="mt-3 text-xs text-amber-700" role="status">Sube y procesa una fuente para generar recursos.</p>
               ) : null}
             </div>

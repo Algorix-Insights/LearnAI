@@ -58,8 +58,7 @@ export default function NotebookComposer({
         placeholder={disabledReason || 'Pregunta algo sobre tus fuentes…'}
         value={content}
         maxLength={4000}
-        readOnly={isSending || isDisabled}
-        aria-disabled={isDisabled}
+        readOnly={isSending}
         onKeyDown={handleKeyDown}
         onChange={(event) => {
           setContent(event.target.value);

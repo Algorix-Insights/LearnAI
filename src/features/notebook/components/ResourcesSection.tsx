@@ -11,7 +11,9 @@ type ResourcesSectionProps = {
   notebookId: string;
   resources: Flashcard[];
   canGenerate?: boolean;
+  isSourceLoading?: boolean;
   isLoading?: boolean;
+  isListError?: boolean;
   isGenerating?: boolean;
   retryAfterSeconds?: number;
   error?: string | null;
@@ -23,7 +25,9 @@ export default function ResourcesSection({
   notebookId,
   resources,
   canGenerate = false,
+  isSourceLoading = false,
   isLoading = false,
+  isListError = false,
   isGenerating = false,
   retryAfterSeconds = 0,
   error,
@@ -46,12 +50,14 @@ export default function ResourcesSection({
             type="button"
             variant="secondary"
             className="w-full gap-2"
-            disabled={isGenerating || !canGenerate}
+            disabled={isGenerating || !canGenerate || isSourceLoading}
             onClick={onGenerate}
           >
             <Plus className="size-4" />
             <span>
-              {!canGenerate
+              {isSourceLoading
+                ? 'Comprobando fuentes…'
+                : !canGenerate
                 ? 'Procesa una fuente primero'
                 : retryAfterSeconds > 0
                 ? `Disponible en ${retryAfterSeconds}s`
@@ -60,14 +66,14 @@ export default function ResourcesSection({
                   : 'Generar 10 flashcards'}
             </span>
           </Button>
-          {!canGenerate ? (
+          {!canGenerate && !isSourceLoading ? (
             <p className="text-xs leading-5 text-amber-700">Sube y procesa una fuente para generar nuevas flashcards.</p>
           ) : null}
           <FlashcardsStudyDialog
             notebookId={notebookId}
             flashcards={resources}
             isLoading={isLoading}
-            isError={Boolean(error)}
+            isError={isListError}
             onRetry={onRetry}
           />
           {error ? <p className="text-xs text-rose-600" role="alert">{error}</p> : null}

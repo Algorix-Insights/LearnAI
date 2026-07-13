@@ -41,6 +41,7 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const [retryableMessage, setRetryableMessage] = useState<string | null>(null);
   const mutationConversationIdRef = useRef<string | null>(null);
   const chatCooldown = useCountdown();
   const generationCooldown = useCountdown();
@@ -108,8 +109,10 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
           },
         );
       }
+      setRetryableMessage(null);
     },
-    onError: (error) => {
+    onError: (error, content) => {
+      setRetryableMessage(error instanceof ApiClientError && error.status === 429 ? content : null);
       if (error instanceof ApiClientError && error.retryAfterSeconds) {
         chatCooldown.start(error.retryAfterSeconds);
       }
@@ -182,12 +185,17 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
       return;
     }
     setNotice(null);
+    setRetryableMessage(null);
     setPendingMessage(content);
     mutationConversationIdRef.current = null;
     sendMessage.reset();
     sendMessage.mutate(content);
   };
   const retryChat = () => {
+    if (retryableMessage && sendMessage.error instanceof ApiClientError && sendMessage.error.status === 429) {
+      handleSend(retryableMessage);
+      return;
+    }
     if (sendMessage.isError || messagesQuery.isError) {
       sendMessage.reset();
       void messagesQuery.refetch();
@@ -225,11 +233,16 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
             isLoadingMessages={Boolean(activeConversationId) && messagesQuery.isPending}
             isSending={sendMessage.isPending}
             isSendDisabled={chatCooldown.isActive || !hasProcessedSources}
-            sendDisabledReason={!hasProcessedSources ? 'Sube y procesa una fuente para habilitar el chat.' : undefined}
+            sendDisabledReason={documentsQuery.isPending
+              ? 'Comprobando fuentes…'
+              : !hasProcessedSources
+                ? 'Sube y procesa una fuente para habilitar el chat.'
+                : undefined}
             hasProcessedSources={hasProcessedSources}
+            isLoadingSources={documentsQuery.isPending}
             isGenerating={generateResource.isPending || generationCooldown.isActive}
             error={interactionError instanceof Error
-              ? `${interactionError.message}${sendMessage.isError
+              ? `${interactionError.message}${sendMessage.isError && !(sendMessage.error instanceof ApiClientError && sendMessage.error.status === 429)
                 ? ' Tu pregunta puede haberse guardado; actualiza la conversación antes de volver a enviarla.'
                 : ''}${chatCooldown.isActive || generationCooldown.isActive
                 ? ` Intenta de nuevo en ${Math.max(chatCooldown.remainingSeconds, generationCooldown.remainingSeconds)}s.`
@@ -238,7 +251,7 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
             statusMessage={notice}
             onSend={handleSend}
             onRetry={chatError ? retryChat : undefined}
-            retryLabel={sendMessage.isError ? 'Actualizar conversación' : 'Reintentar'}
+            retryLabel={retryableMessage ? 'Reintentar pregunta' : sendMessage.isError ? 'Actualizar conversación' : 'Reintentar'}
             canRetry={!chatCooldown.isActive}
             onQuickAction={(action) => generateResource.mutate(action)}
           />
