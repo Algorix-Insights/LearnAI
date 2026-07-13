@@ -12,7 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { Flashcard } from '@/services/contracts';
+import { ApiClientError } from '@/services/api';
+import type { CreateLearningEventPayload, Flashcard } from '@/services/contracts';
 import {
   createLearningEventIdempotencyKey,
   StatisticsService,
@@ -49,6 +50,28 @@ export default function FlashcardsStudyDialog({
   const safeIndex = Math.min(currentIndex, Math.max(flashcards.length - 1, 0));
   const currentCard = flashcards[safeIndex];
 
+  const recordStudySession = (
+    payload: CreateLearningEventPayload,
+    idempotencyKey: string,
+    retriesRemaining = 1,
+  ) => {
+    void StatisticsService.recordLearningEvent(payload, idempotencyKey)
+      .then(() => queryClient.invalidateQueries({ queryKey: ['statistics'] }))
+      .catch((error: unknown) => {
+        if (
+          retriesRemaining > 0
+          && error instanceof ApiClientError
+          && error.status === 429
+          && error.retryAfterSeconds
+        ) {
+          window.setTimeout(
+            () => recordStudySession(payload, idempotencyKey, retriesRemaining - 1),
+            error.retryAfterSeconds * 1000,
+          );
+        }
+      });
+  };
+
   const moveTo = (index: number) => {
     setIsFlipped(false);
     setCurrentIndex(index);
@@ -72,15 +95,12 @@ export default function FlashcardsStudyDialog({
     if (startedAt === null || reviewedCount === 0) return;
 
     const durationSeconds = Math.min(3600, Math.max(0, Math.round((Date.now() - startedAt) / 1000)));
-    void StatisticsService.recordLearningEvent(
-      {
-        notebook_id: notebookId,
-        activity_type: 'flashcard_reviewed',
-        quantity: reviewedCount,
-        duration_seconds: durationSeconds,
-      },
-      createLearningEventIdempotencyKey(),
-    ).then(() => queryClient.invalidateQueries({ queryKey: ['statistics'] })).catch(() => undefined);
+    recordStudySession({
+      notebook_id: notebookId,
+      activity_type: 'flashcard_reviewed',
+      quantity: reviewedCount,
+      duration_seconds: durationSeconds,
+    }, createLearningEventIdempotencyKey());
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
