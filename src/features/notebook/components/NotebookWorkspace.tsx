@@ -53,6 +53,7 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
   const [retryableMessage, setRetryableMessage] = useState<RetryableChatSubmission | null>(null);
   const [failedConversationId, setFailedConversationId] = useState<string | null>(null);
   const [sourcesByMessage, setSourcesByMessage] = useState<Record<string, RagSource[]>>({});
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const mutationConversationIdRef = useRef<string | null>(null);
   const chatCooldown = useCountdown();
   const generationCooldown = useCountdown();
@@ -80,6 +81,15 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
       setActiveConversationId(firstConversationId);
     }
   }, [activeConversationId, firstConversationId]);
+
+  useEffect(() => {
+    if (!isSidebarOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsSidebarOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isSidebarOpen]);
 
   const messagesQuery = useQuery({
     queryKey: ['conversations', activeConversationId, 'messages'],
@@ -282,12 +292,34 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
 
   return (
     <div className="h-screen overflow-hidden bg-white text-slate-800">
-      <div className="grid h-full min-h-0 lg:grid-cols-[254px_minmax(0,1fr)]">
-        <SidebarLeft notebookId={notebookId} notebook={notebookQuery.data} />
+      <div className="grid h-full min-h-0 grid-cols-1 lg:grid-cols-[254px_minmax(0,1fr)]">
+        {isSidebarOpen ? (
+          <button
+            type="button"
+            className="fixed inset-0 z-30 bg-slate-950/20 backdrop-blur-[2px] lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+            aria-label="Cerrar panel de recursos"
+          />
+        ) : null}
+        <div
+          id="notebook-resource-panel"
+          className={`fixed inset-y-0 left-0 z-40 w-[min(88vw,300px)] transform bg-white shadow-2xl transition-transform duration-200 motion-reduce:transition-none lg:static lg:z-auto lg:w-auto lg:translate-x-0 lg:shadow-none ${
+            isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+          aria-hidden={!isSidebarOpen ? true : undefined}
+        >
+          <SidebarLeft
+            notebookId={notebookId}
+            notebook={notebookQuery.data}
+            onClose={() => setIsSidebarOpen(false)}
+          />
+        </div>
         <main className="flex h-full min-w-0 flex-col overflow-hidden">
           <NotebookHeader
             title={notebookQuery.data.name || 'Cuaderno sin nombre'}
             onTitleChange={(name) => updateNotebook.mutate(name)}
+            onToggleSidebar={() => setIsSidebarOpen((current) => !current)}
+            isSidebarOpen={isSidebarOpen}
           />
           <NotebookTabsSection
             notebookTitle={notebookQuery.data.name || notebookId}

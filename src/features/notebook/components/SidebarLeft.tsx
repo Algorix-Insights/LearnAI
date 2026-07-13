@@ -18,6 +18,7 @@ import SummaryCard from './SummaryCard';
 type SidebarLeftProps = {
   notebookId: string;
   notebook?: Notebook;
+  onClose?: () => void;
 };
 
 async function listNotebookFlashcards(notebookId: string): Promise<FlashcardListResponse> {
@@ -36,7 +37,7 @@ async function listNotebookFlashcards(notebookId: string): Promise<FlashcardList
   return { data: flashcards, limit, offset: 0 };
 }
 
-export default function SidebarLeft({ notebookId, notebook }: SidebarLeftProps) {
+export default function SidebarLeft({ notebookId, notebook, onClose }: SidebarLeftProps) {
   const queryClient = useQueryClient();
   const [showTopMask, setShowTopMask] = useState(false);
   const [showBottomMask, setShowBottomMask] = useState(false);
@@ -100,7 +101,7 @@ export default function SidebarLeft({ notebookId, notebook }: SidebarLeftProps) 
 
   return (
     <aside className="relative flex h-full min-h-0 flex-col border-r border-[rgba(116,82,245,0.12)] bg-white/72 backdrop-blur-xl">
-      <SidebarHeader />
+      <SidebarHeader onClose={onClose} />
       <div
         onScroll={handleScroll}
         className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-4 transition-all duration-300 hover-scroll"

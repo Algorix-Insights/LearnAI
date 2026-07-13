@@ -8,9 +8,15 @@ type NotebookHeaderProps = {
     title: string;
     onTitleChange?: (newTitle: string) => void;
     onToggleSidebar?: () => void;
+    isSidebarOpen?: boolean;
 };
 
-export default function NotebookHeader({ title: initialTitle, onTitleChange, onToggleSidebar }: NotebookHeaderProps) {
+export default function NotebookHeader({
+    title: initialTitle,
+    onTitleChange,
+    onToggleSidebar,
+    isSidebarOpen = false,
+}: NotebookHeaderProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [title, setTitle] = useState(initialTitle);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -54,6 +60,8 @@ export default function NotebookHeader({ title: initialTitle, onTitleChange, onT
                     className="lg:hidden"
                     onClick={onToggleSidebar}
                     aria-label="Abrir panel de recursos"
+                    aria-controls="notebook-resource-panel"
+                    aria-expanded={isSidebarOpen}
                 >
                     <PanelLeftClose className="size-6" />
                 </Button>
