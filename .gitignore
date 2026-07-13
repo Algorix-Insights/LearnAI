@@ -41,3 +41,5 @@ next-env.d.ts
 # Archivos del sistema operativo
 .DS_Store
 Thumbs.db
+
+graphify-out/

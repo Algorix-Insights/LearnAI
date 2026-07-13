@@ -8,6 +8,8 @@ COPY package.json package-lock.json* ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 FROM base AS builder
+ARG LEARNIA_API_BASE_URL=https://learnaiapi.algorixinsights.com/api/v1
+ENV LEARNIA_API_BASE_URL=$LEARNIA_API_BASE_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN mkdir -p public && npm run build

@@ -9,6 +9,7 @@ type InputTextProps = {
     type?: string;
     placeholder?: string;
     disabled?: boolean;
+    maxLength?: number;
     className?: string;
     labelClassName?: string;
     inputClassName?: string;
@@ -22,6 +23,7 @@ export function InputText({
     type = "text",
     placeholder = "",
     disabled = false,
+    maxLength,
     className = "",
     labelClassName = "text-sm font-medium text-slate-700",
     inputClassName = "h-12 w-full rounded-[18px] border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[color:var(--app-primary)] focus:ring-2 focus:ring-[color:var(--app-primary)]/10",
@@ -38,6 +40,7 @@ export function InputText({
                 onChange={onChange}
                 placeholder={placeholder}
                 disabled={disabled}
+                maxLength={maxLength}
                 className={inputClassName}
             />
         </Field>
