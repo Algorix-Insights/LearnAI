@@ -15,20 +15,21 @@ const route = '/auth';
 
 export const AuthService = {
     register: async (data: RegisterData) => {
-        const response = await api.post(`${route}/register`, data);
-        return response.data;
+        const { name, lastname: last_name, email, password } = data;
+        const response = await api.post(`${route}/register`, { name, last_name, email, password });
+        return unwrapResponse(response.data);
     },
     login: async ({email, password}: {email: string, password: string}) => {
         const response = await api.post(`${route}/login`, { email, password });
-        return response.data;
+        return unwrapResponse(response.data);
     },
     sendOtp: async ({ email, shouldCreateUser = false }: SendOtpData) => {
         const response = await api.post(`${route}/otp`, { email, should_create_user: shouldCreateUser });
-        return response.data;
+        return unwrapResponse(response.data);
     },
     verifyOtp: async ({email, token}: {email: string, token: string}) => {
         const response = await api.post(`${route}/verify-otp`, { email, token });
-        return response.data;
+        return unwrapResponse(response.data);
     }
 };
 

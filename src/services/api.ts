@@ -14,7 +14,7 @@ function getAuthTokenFromCookie(): string | null {
 }
 
 export const api: AxiosInstance = axios.create({
-    baseURL: "https://learnaiapi.algorixinsights.com",
+    baseURL: "https://learnaiapi.algorixinsights.com/api/v1",
     timeout: 5000,
 });
 

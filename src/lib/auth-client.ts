@@ -19,6 +19,19 @@ export function storeAuthToken(token: string) {
     setCookie(AUTH_COOKIE, token);
 }
 
+export function getAuthToken() {
+    const cookieValue = document.cookie
+        .split('; ')
+        .find((entry) => entry.startsWith(`${AUTH_COOKIE}=`))
+        ?.split('=')[1];
+
+    if (cookieValue) {
+        return decodeURIComponent(cookieValue);
+    }
+
+    return '';
+}
+
 export function clearAuthSession() {
     deleteCookie(AUTH_COOKIE);
     deleteCookie(PENDING_OTP_COOKIE);

@@ -59,7 +59,7 @@ const notebooks: NotebookItem[] = [
 ];
 
 export default async function BibliotecaPage() {
-  await requireAuth();
+  // await requireAuth();
 
   return (
     <AppShell activeHref="/biblioteca">
