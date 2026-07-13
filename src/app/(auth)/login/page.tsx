@@ -8,7 +8,7 @@ import { useMutation } from '@tanstack/react-query';
 import { AuthService } from '@/services/Auth';
 import { useRouter } from 'next/navigation';
 import { SignInFormData, signInSchema } from '@/features/auth/signIn';
-import { getAuthToken, storePendingOtpEmail } from '@/lib/auth-client';
+import { clearPendingOtpSession, getAuthToken, storeAuthToken } from '@/lib/auth-client';
 import { useEffect } from 'react';
 
 export default function LoginPage() {
@@ -29,27 +29,22 @@ export default function LoginPage() {
 	});
 
 	const {
-		mutate: sendOtp,
-		isPending: isSendingOtp,
-	} = useMutation({
-		mutationFn: AuthService.sendOtp,
-		onSuccess: () => {
-			router.push('/otp');
-		}
-	});
-
-	const {
 		mutate: loginUser,
 		isPending: isLoggingIn,
 		isError: isLoginError,
-		isSuccess: isLoginSuccess
+		error: loginError,
 	} = useMutation({
-		mutationFn: AuthService.login,
-		onSuccess: (_data, variables) => {
-			const userEmail = variables.email;
-			storePendingOtpEmail(userEmail);
-
-			sendOtp({ email: userEmail, shouldCreateUser: false });
+		mutationFn: async (payload: Parameters<typeof AuthService.login>[0]) => {
+			const session = await AuthService.login(payload);
+			if (!session.access_token) {
+				throw new Error('La API no devolvió una sesión válida.');
+			}
+			return session;
+		},
+		onSuccess: (data) => {
+			storeAuthToken(data.access_token, data.expires_in ?? undefined);
+			clearPendingOtpSession();
+			router.replace('/home');
 		}
 	});
 
@@ -97,16 +92,10 @@ export default function LoginPage() {
 
 					{
 						isLoginError && (
-							<p className="mt-2 text-sm text-red-500">
-								Error al iniciar sesión. Por favor, inténtalo de nuevo.
-							</p>
-						)
-					}
-
-					{
-						isLoginSuccess && (
-							<p className="mt-2 text-sm text-green-500">
-								Sesión iniciada exitosamente. Redirigiendo...
+							<p className="mt-2 text-sm text-red-500" role="alert">
+								{loginError instanceof Error
+									? loginError.message
+									: 'Error al iniciar sesión. Por favor, inténtalo de nuevo.'}
 							</p>
 						)
 					}
@@ -134,10 +123,10 @@ export default function LoginPage() {
 						<Button
 							type="submit"
 							variant="primary"
-							disabled={isLoggingIn || isSendingOtp}
+							disabled={isLoggingIn}
 							className="mt-1 w-full "
 						>
-							{isLoggingIn || isSendingOtp ? 'Procesando...' : 'Iniciar Sesión'}
+							{isLoggingIn ? 'Procesando...' : 'Iniciar Sesión'}
 						</Button>
 					</form>
 

@@ -12,6 +12,11 @@ function isPublicAuthPath(pathname: string) {
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (pathname === '/backend' || pathname.startsWith('/backend/')) {
+    return NextResponse.next();
+  }
+
   const authToken = request.cookies.get(AUTH_COOKIE)?.value;
   const pendingOtpEmail = request.cookies.get(PENDING_OTP_COOKIE)?.value;
 

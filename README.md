@@ -57,6 +57,12 @@ Este flujo ayuda a mantener trazabilidad, hace mas claro el estado de cada cambi
 - Configurar variables de entorno del backend.
 - Ejecutar lint y build antes de abrir PR.
 
+## Consumo de API
+
+- Copia `.env.example` como `.env.local` y configura `LEARNIA_API_BASE_URL`.
+- Importa los clientes tipados desde `src/services`.
+- Consulta [docs/api-client.md](docs/api-client.md) para métodos, errores, cuotas y ejemplos.
+
 ## Notas utiles
 - La UI debe priorizar claridad y feedback visual para cargas y generacion.
 - El diseño debe soportar crecimiento por feature sin mezclar responsabilidades.
