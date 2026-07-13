@@ -91,7 +91,10 @@ export function CreateNotebookDialog({
       return warning;
     },
     onSuccess: async (warning) => {
-      await queryClient.invalidateQueries({ queryKey: ['notebooks'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['notebooks'] }),
+        queryClient.invalidateQueries({ queryKey: ['statistics'] }),
+      ]);
       setTagWarning(warning);
       setOpen(false);
       resetForm();

@@ -9,13 +9,13 @@ cp .env.example .env.local
 npm run dev
 ```
 
-`LEARNIA_API_BASE_URL` debe contener la URL completa, incluido `/api/v1`:
+`NEXT_PUBLIC_API_URL` debe contener el origen HTTPS final, sin `/api/v1`:
 
 ```dotenv
-LEARNIA_API_BASE_URL=https://learnaiapi.algorixinsights.com/api/v1
+NEXT_PUBLIC_API_URL=https://learnaiapi.algorixinsights.com
 ```
 
-Sin variable, Next usa la API productiva. Para backend local, cambia el valor a `http://127.0.0.1:8000/api/v1`. Configúrala explícitamente antes de `next build` para no depender del valor por defecto. Next expone el API por `/backend/*`, evitando depender de CORS y manteniendo el host real fuera del bundle del navegador. La variable configura una URL, no una credencial: tampoco guardes service-role keys ahí.
+Sin variable, el cliente usa la API productiva. Para backend local, cambia el valor a `http://127.0.0.1:8000`. Configúrala explícitamente antes de `next build` para no depender del valor por defecto. El navegador llama directamente a `${NEXT_PUBLIC_API_URL}/api/v1`, sin un proxy intermedio. La variable configura una URL pública, no una credencial: tampoco guardes service-role keys ahí.
 
 Usa siempre `https://` con Railway. Su endpoint `http://` responde `301`; seguir ese redirect puede convertir un `POST` en `GET` y producir `405 Method Not Allowed` en `/auth/register`.
 
@@ -23,7 +23,7 @@ Para Docker, el destino queda incorporado durante el build:
 
 ```bash
 docker build \
-  --build-arg LEARNIA_API_BASE_URL=https://api.example.com/api/v1 \
+  --build-arg NEXT_PUBLIC_API_URL=https://api.example.com \
   -t learnia-frontend .
 ```
 
@@ -43,7 +43,7 @@ docker build \
 
 Los recursos individuales regresan el objeto ya extraído de `{ data }`. Los listados conservan `{ data, limit, offset }`. Chat y generaciones conservan `{ data, sources }` para no perder citas.
 
-Estos servicios están diseñados para Client Components y hooks: usan `/backend` relativo y leen `sessionStorage`. No los importes directamente en Server Components o Server Actions. Un futuro flujo SSR debe usar un BFF de Next.js con cookies `HttpOnly` y una URL absoluta.
+Estos servicios están diseñados para Client Components y hooks: llaman la URL HTTPS final y leen `sessionStorage`. No los importes directamente en Server Components o Server Actions. Un futuro flujo SSR debe usar un BFF de Next.js con cookies `HttpOnly` y una URL absoluta.
 
 ## Autenticación
 

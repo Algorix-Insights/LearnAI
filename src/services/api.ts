@@ -4,7 +4,14 @@ import type { AxiosError, AxiosInstance } from 'axios';
 import { AUTH_UNAUTHORIZED_EVENT } from '@/lib/auth';
 import { clearAuthSession, getAccessToken } from '@/lib/auth-client';
 
-export const API_BASE_URL = '/backend';
+const configuredApiUrl = (
+  process.env.NEXT_PUBLIC_API_URL ||
+  'https://learnaiapi.algorixinsights.com'
+).replace(/\/+$/, '');
+
+export const API_BASE_URL = configuredApiUrl.endsWith('/api/v1')
+  ? configuredApiUrl
+  : `${configuredApiUrl}/api/v1`;
 
 export const API_UPLOAD_TIMEOUT_MS = 120_000;
 export const API_AI_TIMEOUT_MS = 180_000;

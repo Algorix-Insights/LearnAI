@@ -16,14 +16,26 @@ import ReinforceCard from '@/features/Dashboard/Components/Reinforce';
 import StreakCard from '@/features/Dashboard/Components/Streak';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { AppShell } from '@/layouts/app-shell';
+import { NotebookService } from '@/services/Notebook';
 import { StatisticsService } from '@/services/Statistics';
-import type { StatisticsPeriod } from '@/services/contracts';
+import type {
+  Notebook,
+  ReinforcementNotebook,
+  StatisticsPeriod,
+  UpcomingNotebook,
+} from '@/services/contracts';
 
 const periods: Array<{ value: StatisticsPeriod; label: string }> = [
   { value: 'week', label: 'Semana' },
   { value: 'month', label: 'Mes' },
   { value: 'all', label: 'Año' },
 ];
+
+function hasNotebookId(
+  notebook: Notebook,
+): notebook is Notebook & { notebook_id: string } {
+  return Boolean(notebook.notebook_id);
+}
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -33,7 +45,57 @@ export default function DashboardPage() {
     queryKey: ['statistics', period, timezone],
     queryFn: () => StatisticsService.getStatistics({ period, timezone }),
   });
+  const notebooksQuery = useQuery({
+    queryKey: ['notebooks'],
+    queryFn: () => NotebookService.list({ limit: 500, offset: 0 }),
+  });
   const statistics = statisticsQuery.data;
+  const notebooks = (notebooksQuery.data?.data ?? [])
+    .filter(hasNotebookId)
+    .filter((notebook) => notebook.status !== 'deleted');
+
+  const reinforcement: ReinforcementNotebook[] = statistics
+    ? [
+        ...statistics.reinforcement,
+        ...notebooks
+          .filter((notebook) => {
+            const alreadyIncluded = statistics.reinforcement.some(
+              (item) => item.notebook_id === notebook.notebook_id,
+            );
+            return !alreadyIncluded && notebook.is_dominated !== true;
+          })
+          .map((notebook) => ({
+            notebook_id: notebook.notebook_id,
+            name: notebook.name || 'Cuaderno sin nombre',
+            mastery_percent: 0,
+            flashcards_count: 0,
+            exams_count: 0,
+          })),
+      ]
+    : [];
+
+  const upcoming: UpcomingNotebook[] = statistics
+    ? [
+        ...statistics.upcoming,
+        ...notebooks
+          .filter((notebook) => {
+            if (!notebook.due_date) return false;
+            const dueTime = new Date(notebook.due_date).getTime();
+            const alreadyIncluded = statistics.upcoming.some(
+              (item) => item.notebook_id === notebook.notebook_id,
+            );
+            return !alreadyIncluded && Number.isFinite(dueTime) && dueTime >= Date.now();
+          })
+          .map((notebook) => ({
+            notebook_id: notebook.notebook_id,
+            name: notebook.name || 'Cuaderno sin nombre',
+            due_date: notebook.due_date!,
+          })),
+      ].sort(
+        (left, right) =>
+          new Date(left.due_date).getTime() - new Date(right.due_date).getTime(),
+      )
+    : [];
 
   return (
     <AppShell activeHref="/dashboard">
@@ -105,10 +167,13 @@ export default function DashboardPage() {
             <MasteredNotebooksCard
               data={{
                 mastered: statistics.overview.notebooks_dominated,
-                total: statistics.overview.total_notebooks,
+                total: Math.max(
+                  statistics.overview.total_notebooks,
+                  notebooks.length,
+                ),
               }}
             />
-            <ReinforceCard data={statistics.reinforcement} />
+            <ReinforceCard data={reinforcement} />
 
             <div style={{ gridArea: 'learning' }} className="flex h-full flex-col overflow-hidden rounded-2xl border border-[color:var(--app-border)] bg-white p-5">
               <p className="text-base font-semibold text-gray-900">Tu aprendizaje</p>
@@ -117,7 +182,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <DueSoonCard data={statistics.upcoming} />
+            <DueSoonCard data={upcoming} />
 
             <div style={{ gridArea: 'streak' }} className="flex h-full items-center justify-between gap-4 overflow-hidden rounded-2xl border border-[color:var(--app-border)] bg-white p-5">
               <StreakCard streak={statistics.streak} />
