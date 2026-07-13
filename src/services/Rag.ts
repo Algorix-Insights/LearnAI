@@ -35,14 +35,24 @@ export const RagService = {
     pagination: PaginationParams = {},
   ): Promise<DocumentListResponse> => {
     const response = await api.get<DocumentListResponse>('/documents', {
-      params: pagination,
+      // Filter in PostgREST instead of downloading every accessible document
+      // and discarding unrelated rows in the browser.
+      params: { ...pagination, notebook_id: notebookId },
     });
 
     return {
       ...response.data,
-      data: response.data.data.filter(
-        (document) => document.notebook_id === notebookId,
-      ),
+      data: response.data.data
+        .filter((document) => document.notebook_id === notebookId)
+        .sort((left, right) => {
+          const leftTime = left.created_at
+            ? new Date(left.created_at).getTime()
+            : 0;
+          const rightTime = right.created_at
+            ? new Date(right.created_at).getTime()
+            : 0;
+          return rightTime - leftTime;
+        }),
     };
   },
 

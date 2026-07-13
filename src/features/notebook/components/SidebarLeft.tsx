@@ -72,6 +72,9 @@ export default function SidebarLeft({ notebookId, notebook }: SidebarLeftProps) 
   const bottomGradient = showBottomMask ? 'rgba(0,0,0,1) 96%, rgba(0,0,0,0) 100%' : 'rgba(0,0,0,1) 100%';
   const sourceError = uploadDocument.error ?? deleteDocument.error ?? documentsQuery.error;
   const resourceError = generateFlashcards.error ?? flashcardsQuery.error;
+  const hasProcessedSources = (documentsQuery.data?.data ?? []).some(
+    (document) => document.processing_status === 'completed',
+  );
 
   return (
     <aside className="relative flex h-full min-h-0 flex-col border-r border-[rgba(116,82,245,0.12)] bg-white/72 backdrop-blur-xl">
@@ -97,12 +100,15 @@ export default function SidebarLeft({ notebookId, notebook }: SidebarLeftProps) 
           onDelete={(documentId) => deleteDocument.mutate(documentId)}
         />
         <ResourcesSection
+          notebookId={notebookId}
           resources={flashcardsQuery.data?.data ?? []}
+          canGenerate={hasProcessedSources}
           isLoading={flashcardsQuery.isPending}
           isGenerating={generateFlashcards.isPending || flashcardCooldown.isActive}
           retryAfterSeconds={flashcardCooldown.remainingSeconds}
           error={resourceError instanceof Error ? resourceError.message : null}
           onGenerate={() => generateFlashcards.mutate()}
+          onRetry={() => void flashcardsQuery.refetch()}
         />
       </div>
     </aside>

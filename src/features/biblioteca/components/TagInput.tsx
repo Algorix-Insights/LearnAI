@@ -19,6 +19,7 @@ type TagInputProps = {
 };
 
 const tagsQueryKey = ['tags'] as const;
+const TAGS_STALE_TIME = 10 * 60_000;
 
 const selectClassNames: ClassNamesConfig<Option, false> = {
   control: (state) =>
@@ -49,6 +50,7 @@ export function TagInput({ value, onChange }: TagInputProps) {
   const tagsQuery = useQuery({
     queryKey: tagsQueryKey,
     queryFn: () => TagService.list({ limit: 100, offset: 0 }),
+    staleTime: TAGS_STALE_TIME,
   });
   const createTagMutation = useMutation({
     mutationFn: (name: string) => TagService.create({ name: name.trim() }),

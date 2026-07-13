@@ -15,12 +15,14 @@ import {
 import LogoRagAI from "@/assets/ragaiLogo.svg"
 import Image from 'next/image';
 
+import { ContentLoadingSkeleton } from '@/components/ContentLoadingSkeleton';
 import { CreateNotebookDialog } from '@/components/CreateNotebookDialog';
 import { LogoutButton } from '@/components/LogoutButton';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { NotebookService } from '@/services/Notebook';
 import { UserService } from '@/services/User';
 import { ApiClientError } from '@/services/api';
+import type { NotebookListResponse } from '@/services/contracts';
 
 type NavItem = {
   label: string;
@@ -34,6 +36,20 @@ const navItems: NavItem[] = [
   { label: 'Biblioteca', href: '/biblioteca', icon: BookOpen },
   { label: 'Salas de estudio', href: '/salas-de-estudio', icon: Users },
 ];
+
+const PROFILE_FALLBACK_STALE_TIME = 15 * 60_000;
+const NOTEBOOKS_STALE_TIME = 5 * 60_000;
+
+function selectRecentNotebooks(response: NotebookListResponse) {
+  return response.data
+    .filter((notebook) => notebook.notebook_id && notebook.status !== 'deleted')
+    .sort((left, right) => {
+      const leftTime = left.created_at ? new Date(left.created_at).getTime() : 0;
+      const rightTime = right.created_at ? new Date(right.created_at).getTime() : 0;
+      return rightTime - leftTime;
+    })
+    .slice(0, 3);
+}
 
 export function AppShell({
   children,
@@ -54,7 +70,12 @@ export function AppShell({
       }
     },
     enabled: status === 'authenticated',
-    staleTime: 0,
+    staleTime: (query) => {
+      const expiresIn = query.state.data?.expires_in;
+      return expiresIn
+        ? Math.max(30_000, Math.floor(expiresIn * 900))
+        : PROFILE_FALLBACK_STALE_TIME;
+    },
     refetchInterval: (query) => {
       const expiresIn = query.state.data?.expires_in;
       return expiresIn
@@ -66,15 +87,10 @@ export function AppShell({
     queryKey: ['notebooks'],
     queryFn: () => NotebookService.list({ limit: 500, offset: 0 }),
     enabled: status === 'authenticated',
+    staleTime: NOTEBOOKS_STALE_TIME,
+    select: selectRecentNotebooks,
   });
-  const recentNotebooks = (recentNotebooksQuery.data?.data ?? [])
-    .filter((notebook) => notebook.notebook_id && notebook.status !== 'deleted')
-    .sort((left, right) => {
-      const leftTime = left.created_at ? new Date(left.created_at).getTime() : 0;
-      const rightTime = right.created_at ? new Date(right.created_at).getTime() : 0;
-      return rightTime - leftTime;
-    })
-    .slice(0, 3);
+  const recentNotebooks = recentNotebooksQuery.data ?? [];
   const initials = `${user?.name?.[0] ?? ''}${user?.last_name?.[0] ?? ''}`.toUpperCase() || 'U';
 
   return (
@@ -125,9 +141,15 @@ export function AppShell({
                 Cuadernos Recientes
               </p>
               <div className="mt-3 space-y-1">
-                {recentNotebooks.length === 0 ? (
+                {recentNotebooksQuery.isPending ? (
+                  <ContentLoadingSkeleton
+                    count={3}
+                    label="Cargando cuadernos recientes"
+                    variant="compact"
+                  />
+                ) : recentNotebooks.length === 0 ? (
                   <p className="px-3 py-2 text-xs text-slate-400">
-                    {recentNotebooksQuery.isPending ? 'Cargando…' : 'Sin cuadernos recientes'}
+                    Sin cuadernos recientes
                   </p>
                 ) : recentNotebooks.map((notebook) => (
                   <Link

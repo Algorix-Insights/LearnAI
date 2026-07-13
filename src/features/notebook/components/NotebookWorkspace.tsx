@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { AppRouteLoading } from '@/components/AppRouteLoading';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useCountdown } from '@/hooks/use-countdown';
 import { ExamService } from '@/services/Exam';
 import { NotebookService } from '@/services/Notebook';
 import { RagService } from '@/services/Rag';
 import { ApiClientError } from '@/services/api';
+import type { MessageListResponse } from '@/services/contracts';
 
 import NotebookHeader from './NotebookHeader';
 import NotebookTabsSection from './NotebookTabsSection';
@@ -17,11 +19,29 @@ import SidebarLeft from './SidebarLeft';
 
 const quickActions = ['Flashcards', 'Examen V/F', 'Opción múltiple', 'Preguntas abiertas'];
 
+async function listConversationMessages(conversationId: string): Promise<MessageListResponse> {
+  const limit = 100;
+  const maxMessages = 1000;
+  const messages: MessageListResponse['data'] = [];
+  let offset = 0;
+
+  while (offset < maxMessages) {
+    const page = await RagService.listMessages(conversationId, { limit, offset });
+    messages.push(...page.data);
+    if (page.data.length < limit) break;
+    offset += limit;
+  }
+
+  return { data: messages, limit, offset: 0 };
+}
+
 export default function NotebookWorkspace({ notebookId }: { notebookId: string }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const mutationConversationIdRef = useRef<string | null>(null);
   const chatCooldown = useCountdown();
   const generationCooldown = useCountdown();
   const notebookQuery = useQuery({
@@ -36,6 +56,8 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
     queryKey: ['notebooks', notebookId, 'conversations'],
     queryFn: () => RagService.listConversations(notebookId, { limit: 20, offset: 0 }),
   });
+  const documents = documentsQuery.data?.data ?? [];
+  const hasProcessedSources = documents.some((document) => document.processing_status === 'completed');
   const conversations = conversationsQuery.data?.data ?? [];
   const firstConversationId = conversations.find(
     (conversation) => conversation.conversation_id,
@@ -49,7 +71,7 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
 
   const messagesQuery = useQuery({
     queryKey: ['conversations', activeConversationId, 'messages'],
-    queryFn: () => RagService.listMessages(activeConversationId as string, { limit: 50, offset: 0 }),
+    queryFn: () => listConversationMessages(activeConversationId as string),
     enabled: Boolean(activeConversationId),
   });
   const createConversation = useMutation({
@@ -72,19 +94,36 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
         conversationId = conversation.conversation_id;
         setActiveConversationId(conversationId);
       }
-      await RagService.sendMessage(conversationId, { content });
-      return conversationId;
+      mutationConversationIdRef.current = conversationId;
+      return RagService.sendMessage(conversationId, { content });
     },
-    onSuccess: async (conversationId) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['notebooks', notebookId, 'conversations'] }),
-        queryClient.invalidateQueries({ queryKey: ['conversations', conversationId, 'messages'] }),
-      ]);
+    onSuccess: (response) => {
+      const conversationId = response.data.conversation_id ?? mutationConversationIdRef.current;
+      if (conversationId) {
+        queryClient.setQueryData<MessageListResponse>(
+          ['conversations', conversationId, 'messages'],
+          (current) => {
+            if (!current || current.data.some((message) => message.message_id === response.data.message_id)) return current;
+            return { ...current, data: [...current.data, response.data] };
+          },
+        );
+      }
     },
     onError: (error) => {
       if (error instanceof ApiClientError && error.retryAfterSeconds) {
         chatCooldown.start(error.retryAfterSeconds);
       }
+    },
+    onSettled: async () => {
+      const conversationId = mutationConversationIdRef.current;
+      const requests = [
+        queryClient.invalidateQueries({ queryKey: ['notebooks', notebookId, 'conversations'] }),
+      ];
+      if (conversationId) {
+        requests.push(queryClient.invalidateQueries({ queryKey: ['conversations', conversationId, 'messages'] }));
+      }
+      await Promise.all(requests);
+      setPendingMessage(null);
     },
   });
   const updateNotebook = useMutation({
@@ -122,7 +161,7 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
   });
 
   if (notebookQuery.isPending) {
-    return <div className="grid h-screen place-items-center text-sm text-slate-500" role="status">Cargando cuaderno…</div>;
+    return <AppRouteLoading label="Cargando cuaderno" variant="notebook" />;
   }
 
   if (notebookQuery.isError) {
@@ -135,7 +174,31 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
     );
   }
 
-  const interactionError = sendMessage.error ?? createConversation.error ?? generateResource.error;
+  const chatError = sendMessage.error ?? messagesQuery.error ?? conversationsQuery.error ?? createConversation.error;
+  const interactionError = chatError ?? generateResource.error;
+  const handleSend = (content: string) => {
+    if (!hasProcessedSources) {
+      setNotice('Sube y procesa una fuente antes de iniciar el chat.');
+      return;
+    }
+    setNotice(null);
+    setPendingMessage(content);
+    mutationConversationIdRef.current = null;
+    sendMessage.reset();
+    sendMessage.mutate(content);
+  };
+  const retryChat = () => {
+    if (sendMessage.isError || messagesQuery.isError) {
+      sendMessage.reset();
+      void messagesQuery.refetch();
+      return;
+    }
+    if (conversationsQuery.isError) {
+      void conversationsQuery.refetch();
+      return;
+    }
+    if (createConversation.isError) createConversation.mutate('Nueva conversación');
+  };
 
   return (
     <div className="h-screen overflow-hidden bg-white text-slate-800">
@@ -157,16 +220,26 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
             actions={quickActions}
             userName={user?.name}
             messages={messagesQuery.data?.data ?? []}
-            sourceCount={documentsQuery.data?.data.length ?? 0}
-            isSending={sendMessage.isPending || chatCooldown.isActive}
+            pendingMessage={pendingMessage}
+            sourceCount={documents.length}
+            isLoadingMessages={Boolean(activeConversationId) && messagesQuery.isPending}
+            isSending={sendMessage.isPending}
+            isSendDisabled={chatCooldown.isActive || !hasProcessedSources}
+            sendDisabledReason={!hasProcessedSources ? 'Sube y procesa una fuente para habilitar el chat.' : undefined}
+            hasProcessedSources={hasProcessedSources}
             isGenerating={generateResource.isPending || generationCooldown.isActive}
             error={interactionError instanceof Error
-              ? `${interactionError.message}${chatCooldown.isActive || generationCooldown.isActive
+              ? `${interactionError.message}${sendMessage.isError
+                ? ' Tu pregunta puede haberse guardado; actualiza la conversación antes de volver a enviarla.'
+                : ''}${chatCooldown.isActive || generationCooldown.isActive
                 ? ` Intenta de nuevo en ${Math.max(chatCooldown.remainingSeconds, generationCooldown.remainingSeconds)}s.`
                 : ''}`
               : null}
             statusMessage={notice}
-            onSend={(content) => sendMessage.mutate(content)}
+            onSend={handleSend}
+            onRetry={chatError ? retryChat : undefined}
+            retryLabel={sendMessage.isError ? 'Actualizar conversación' : 'Reintentar'}
+            canRetry={!chatCooldown.isActive}
             onQuickAction={(action) => generateResource.mutate(action)}
           />
         </main>
