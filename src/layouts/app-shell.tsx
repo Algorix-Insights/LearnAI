@@ -63,13 +63,18 @@ export function AppShell({
     },
   });
   const recentNotebooksQuery = useQuery({
-    queryKey: ['notebooks', 'recent'],
-    queryFn: () => NotebookService.list({ limit: 3, offset: 0 }),
+    queryKey: ['notebooks'],
+    queryFn: () => NotebookService.list({ limit: 500, offset: 0 }),
     enabled: status === 'authenticated',
   });
-  const recentNotebooks = (recentNotebooksQuery.data?.data ?? []).filter(
-    (notebook) => notebook.notebook_id,
-  );
+  const recentNotebooks = (recentNotebooksQuery.data?.data ?? [])
+    .filter((notebook) => notebook.notebook_id && notebook.status !== 'deleted')
+    .sort((left, right) => {
+      const leftTime = left.created_at ? new Date(left.created_at).getTime() : 0;
+      const rightTime = right.created_at ? new Date(right.created_at).getTime() : 0;
+      return rightTime - leftTime;
+    })
+    .slice(0, 3);
   const initials = `${user?.name?.[0] ?? ''}${user?.last_name?.[0] ?? ''}`.toUpperCase() || 'U';
 
   return (

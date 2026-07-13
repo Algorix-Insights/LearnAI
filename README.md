@@ -59,7 +59,7 @@ Este flujo ayuda a mantener trazabilidad, hace mas claro el estado de cada cambi
 
 ## Consumo de API
 
-- Copia `.env.example` como `.env.local` y configura `LEARNIA_API_BASE_URL`.
+- Copia `.env.example` como `.env.local` y configura `NEXT_PUBLIC_API_URL`.
 - Importa los clientes tipados desde `src/services`.
 - Consulta [docs/api-client.md](docs/api-client.md) para métodos, errores, cuotas y ejemplos.
 
