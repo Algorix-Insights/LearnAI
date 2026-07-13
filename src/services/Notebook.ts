@@ -93,4 +93,21 @@ export const notebookService = {
         const response = await api.get<NotebookResponse>(`${BASE_URL}/${notebookId}`);
         return response.data;
     },
+
+    // Time spent management
+    async updateSpentTime({ notebookId, spentTime }: { notebookId: string; spentTime: number }) {
+        const response = await api.patch<NotebookResponse>(`${BASE_URL}/${notebookId}`, { spent_time: spentTime });
+        return response.data;
+    },
+
+    async getSpentTime(notebookId: string) {
+        const response = await api.get<NotebookResponse>(`${BASE_URL}/${notebookId}`);
+        return response.data.data.spent_time;
+    },
+
+    // due date management
+    async updateDueDate({ notebookId, dueDate }: { notebookId: string; dueDate: string }) {
+        const response = await api.patch<NotebookResponse>(`${BASE_URL}/${notebookId}`, { due_date: dueDate });
+        return response.data;
+    },
 };

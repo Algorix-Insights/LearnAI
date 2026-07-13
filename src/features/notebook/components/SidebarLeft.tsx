@@ -1,5 +1,7 @@
-"use client"
+"use client";
+
 import { useState, UIEvent } from 'react';
+import { useParams } from 'next/navigation';
 import DueDateCard from './DueDateCard';
 import ResourcesSection from './ResourcesSection';
 import SidebarHeader from './SidebarHeader';
@@ -20,6 +22,10 @@ const generatedResources = [
 ];
 
 export default function SidebarLeft() {
+    const params = useParams();
+    // Extrae el id de la URL (ajusta 'notebook_id' según el nombre del segmento dinámico de tu App Router [notebook_id] o [id])
+    const notebookId = (params?.notebook_id ?? params?.id ?? '') as string;
+
     const [showTopMask, setShowTopMask] = useState(false);
     const [showBottomMask, setShowBottomMask] = useState(false);
 
@@ -32,6 +38,7 @@ export default function SidebarLeft() {
         setShowTopMask(scrollTop > 2);
         setShowBottomMask(scrollTop + clientHeight < scrollHeight - 2);
     };
+
     const topGradient = showTopMask ? 'rgba(0,0,0,0) 0%, rgba(0,0,0,1) 4%' : 'rgba(0,0,0,1) 0%';
     const bottomGradient = showBottomMask ? 'rgba(0,0,0,1) 96%, rgba(0,0,0,0) 100%' : 'rgba(0,0,0,1) 100%';
 
@@ -47,7 +54,7 @@ export default function SidebarLeft() {
                     WebkitMaskImage: `linear-gradient(to bottom, ${topGradient}, ${bottomGradient})`
                 }}
             >
-                <StudyTimerCard />
+                <StudyTimerCard notebookId={notebookId} />
                 <DueDateCard />
                 <SummaryCard />
                 <SourcesSection sources={sources} />
