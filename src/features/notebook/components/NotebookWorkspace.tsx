@@ -112,7 +112,9 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
       setRetryableMessage(null);
     },
     onError: (error, content) => {
-      setRetryableMessage(error instanceof ApiClientError && error.status === 429 ? content : null);
+      const canSafelyRetry = mutationConversationIdRef.current === null
+        || (error instanceof ApiClientError && error.status === 429);
+      setRetryableMessage(canSafelyRetry ? content : null);
       if (error instanceof ApiClientError && error.retryAfterSeconds) {
         chatCooldown.start(error.retryAfterSeconds);
       }
@@ -192,7 +194,7 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
     sendMessage.mutate(content);
   };
   const retryChat = () => {
-    if (retryableMessage && sendMessage.error instanceof ApiClientError && sendMessage.error.status === 429) {
+    if (retryableMessage) {
       handleSend(retryableMessage);
       return;
     }
@@ -242,7 +244,7 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
             isLoadingSources={documentsQuery.isPending}
             isGenerating={generateResource.isPending || generationCooldown.isActive}
             error={interactionError instanceof Error
-              ? `${interactionError.message}${sendMessage.isError && !(sendMessage.error instanceof ApiClientError && sendMessage.error.status === 429)
+              ? `${interactionError.message}${sendMessage.isError && !retryableMessage
                 ? ' Tu pregunta puede haberse guardado; actualiza la conversación antes de volver a enviarla.'
                 : ''}${chatCooldown.isActive || generationCooldown.isActive
                 ? ` Intenta de nuevo en ${Math.max(chatCooldown.remainingSeconds, generationCooldown.remainingSeconds)}s.`
