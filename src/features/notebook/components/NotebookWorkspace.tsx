@@ -201,8 +201,7 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
     },
     onError: (error, submission) => {
       const conversationId = mutationConversationIdRef.current;
-      const canSafelyRetry = mutationConversationIdRef.current === null
-        || (error instanceof ApiClientError && error.status === 429);
+      const canSafelyRetry = error instanceof ApiClientError && error.status === 429;
       setRetryableMessage(canSafelyRetry ? { content: submission.content, conversationId } : null);
       setFailedConversationId(conversationId);
       if (error instanceof ApiClientError && error.retryAfterSeconds) {
@@ -307,8 +306,16 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
       handleSend(activeRetryableMessage.content, activeRetryableMessage.conversationId);
       return;
     }
-    if (sendMessage.isError || messagesQuery.isError) {
+    if (sendMessage.isError) {
       sendMessage.reset();
+      if (failedConversationId) {
+        void messagesQuery.refetch();
+      } else {
+        void conversationsQuery.refetch();
+      }
+      return;
+    }
+    if (messagesQuery.isError) {
       void messagesQuery.refetch();
       return;
     }
