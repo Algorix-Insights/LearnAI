@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCountdown } from '@/hooks/use-countdown';
 import { RagService } from '@/services/Rag';
 import { ApiClientError } from '@/services/api';
-import type { Notebook } from '@/services/contracts';
+import type { FlashcardListResponse, Notebook } from '@/services/contracts';
 
 import DueDateCard from './DueDateCard';
 import ResourcesSection from './ResourcesSection';
@@ -20,6 +20,22 @@ type SidebarLeftProps = {
   notebook?: Notebook;
 };
 
+async function listNotebookFlashcards(notebookId: string): Promise<FlashcardListResponse> {
+  const limit = 100;
+  const maxFlashcards = 1000;
+  const flashcards: FlashcardListResponse['data'] = [];
+  let offset = 0;
+
+  while (offset < maxFlashcards) {
+    const page = await RagService.listFlashcards(notebookId, { limit, offset });
+    flashcards.push(...page.data);
+    if (page.data.length < limit) break;
+    offset += limit;
+  }
+
+  return { data: flashcards, limit, offset: 0 };
+}
+
 export default function SidebarLeft({ notebookId, notebook }: SidebarLeftProps) {
   const queryClient = useQueryClient();
   const [showTopMask, setShowTopMask] = useState(false);
@@ -32,12 +48,15 @@ export default function SidebarLeft({ notebookId, notebook }: SidebarLeftProps) 
   });
   const flashcardsQuery = useQuery({
     queryKey: ['notebooks', notebookId, 'flashcards'],
-    queryFn: () => RagService.listFlashcards(notebookId, { limit: 100, offset: 0 }),
+    queryFn: () => listNotebookFlashcards(notebookId),
   });
   const uploadDocument = useMutation({
     mutationFn: (file: File) => RagService.uploadDocument(notebookId, { file }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['notebooks', notebookId, 'documents'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['notebooks', notebookId, 'documents'] }),
+        queryClient.invalidateQueries({ queryKey: ['statistics'] }),
+      ]);
     },
     onError: (error) => {
       if (error instanceof ApiClientError && error.retryAfterSeconds) {
@@ -54,7 +73,10 @@ export default function SidebarLeft({ notebookId, notebook }: SidebarLeftProps) 
   const generateFlashcards = useMutation({
     mutationFn: () => RagService.generateFlashcards(notebookId, { count: 10 }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['notebooks', notebookId, 'flashcards'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['notebooks', notebookId, 'flashcards'] }),
+        queryClient.invalidateQueries({ queryKey: ['statistics'] }),
+      ]);
     },
     onError: (error) => {
       if (error instanceof ApiClientError && error.retryAfterSeconds) {

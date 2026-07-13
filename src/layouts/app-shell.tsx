@@ -10,6 +10,7 @@ import {
   Users,
   Search,
   Bell,
+  RefreshCw,
   type LucideIcon,
 } from 'lucide-react';
 import LogoRagAI from "@/assets/ragaiLogo.svg"
@@ -147,20 +148,44 @@ export function AppShell({
                     label="Cargando cuadernos recientes"
                     variant="compact"
                   />
-                ) : recentNotebooks.length === 0 ? (
-                  <p className="px-3 py-2 text-xs text-slate-400">
-                    Sin cuadernos recientes
-                  </p>
-                ) : recentNotebooks.map((notebook) => (
-                  <Link
-                    key={notebook.notebook_id}
-                    href={`/biblioteca/notebook/${notebook.notebook_id}`}
-                    className="flex items-center gap-3 truncate rounded-xl px-3 py-2 text-sm text-slate-600 transition hover:bg-white/70 hover:text-slate-900"
-                  >
-                    <BookOpen className="h-4 w-4 shrink-0 text-slate-400" strokeWidth={2} />
-                    <span className="truncate">{notebook.name || 'Cuaderno sin nombre'}</span>
-                  </Link>
-                ))}
+                ) : (
+                  <>
+                    {recentNotebooksQuery.isError ? (
+                      <div
+                        className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700"
+                        role="alert"
+                      >
+                        <p>No pudimos cargar tus cuadernos.</p>
+                        <button
+                          type="button"
+                          className="mt-2 inline-flex items-center gap-1 font-semibold text-rose-700 transition hover:text-rose-900 disabled:cursor-wait disabled:opacity-60"
+                          disabled={recentNotebooksQuery.isFetching}
+                          onClick={() => void recentNotebooksQuery.refetch()}
+                        >
+                          <RefreshCw
+                            className={`size-3 ${recentNotebooksQuery.isFetching ? 'animate-spin' : ''}`}
+                            aria-hidden="true"
+                          />
+                          {recentNotebooksQuery.isFetching ? 'Reintentando…' : 'Reintentar'}
+                        </button>
+                      </div>
+                    ) : null}
+                    {recentNotebooks.length === 0 && !recentNotebooksQuery.isError ? (
+                      <p className="px-3 py-2 text-xs text-slate-400">
+                        Sin cuadernos recientes
+                      </p>
+                    ) : recentNotebooks.map((notebook) => (
+                      <Link
+                        key={notebook.notebook_id}
+                        href={`/biblioteca/notebook/${notebook.notebook_id}`}
+                        className="flex items-center gap-3 truncate rounded-xl px-3 py-2 text-sm text-slate-600 transition hover:bg-white/70 hover:text-slate-900"
+                      >
+                        <BookOpen className="h-4 w-4 shrink-0 text-slate-400" strokeWidth={2} />
+                        <span className="truncate">{notebook.name || 'Cuaderno sin nombre'}</span>
+                      </Link>
+                    ))}
+                  </>
+                )}
               </div>
             </div>
           </div>
