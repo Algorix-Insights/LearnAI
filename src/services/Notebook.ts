@@ -1,60 +1,85 @@
-import axios from 'axios';
+import { api, unwrapData } from '@/services/api';
+import type {
+  ApiEnvelope,
+  CreateNotebookPayload,
+  Notebook,
+  NotebookListResponse,
+  NotebookResponse,
+  NotebookTag,
+  PaginationParams,
+  UpdateNotebookPayload,
+} from '@/services/contracts';
 
-const BASE_URL = '/api/v1/notebooks';
+const route = '/notebooks';
 
-export const notebookService = {
-    // GET /api/v1/notebooks
-    getNotebooks: async () => {
-        try {
-            const response = await axios.get(BASE_URL);
-            return response.data;
-        } catch (error) {
-            console.error('Error fetching notebooks:', error);
-            throw error;
-        }
-    },
+async function list(params: PaginationParams = {}): Promise<NotebookListResponse> {
+  const response = await api.get<NotebookListResponse>(route, { params });
+  return response.data;
+}
 
-    // POST /api/v1/notebooks
-    createNotebook: async (notebookData: { title: string; description?: string }) => {
-        try {
-            const response = await axios.post(BASE_URL, notebookData);
-            return response.data;
-        } catch (error) {
-            console.error('Error creating notebook:', error);
-            throw error;
-        }
-    },
+async function create(payload: CreateNotebookPayload): Promise<Notebook> {
+  const response = await api.post<NotebookResponse>(route, payload);
+  return unwrapData(response.data);
+}
 
-    // GET /api/v1/notebooks/{notebook_id}
-    getNotebookById: async (notebookId: string | number) => {
-        try {
-            const response = await axios.get(`${BASE_URL}/${notebookId}`);
-            return response.data;
-        } catch (error) {
-            console.error(`Error fetching notebook with id ${notebookId}:`, error);
-            throw error;
-        }
-    },
+async function get(notebookId: string): Promise<Notebook> {
+  const response = await api.get<NotebookResponse>(`${route}/${notebookId}`);
+  return unwrapData(response.data);
+}
 
-    // PATCH /api/v1/notebooks/{notebook_id}
-    updateNotebook: async (notebookId: string | number, updateData: Partial<{ title: string; description: string }>) => {
-        try {
-            const response = await axios.patch(`${BASE_URL}/${notebookId}`, updateData);
-            return response.data;
-        } catch (error) {
-            console.error(`Error updating notebook with id ${notebookId}:`, error);
-            throw error;
-        }
-    },
+async function update(
+  notebookId: string,
+  payload: UpdateNotebookPayload,
+): Promise<Notebook> {
+  const response = await api.patch<NotebookResponse>(
+    `${route}/${notebookId}`,
+    payload,
+  );
+  return unwrapData(response.data);
+}
 
-    // DELETE /api/v1/notebooks/{notebook_id}
-    deleteNotebook: async (notebookId: string | number) => {
-        try {
-            const response = await axios.delete(`${BASE_URL}/${notebookId}`);
-            return response.data;
-        } catch (error) {
-            console.error(`Error deleting notebook with id ${notebookId}:`, error);
-            throw error;
-        }
-    }
+async function remove(notebookId: string): Promise<Notebook> {
+  const response = await api.delete<NotebookResponse>(`${route}/${notebookId}`);
+  return unwrapData(response.data);
+}
+
+async function attachTag(
+  notebookId: string,
+  tagId: string,
+): Promise<NotebookTag> {
+  const response = await api.post<ApiEnvelope<NotebookTag>>(
+    `${route}/${notebookId}/tags/${tagId}`,
+  );
+  return unwrapData(response.data);
+}
+
+async function detachTag(
+  notebookId: string,
+  tagId: string,
+): Promise<NotebookTag> {
+  const response = await api.delete<ApiEnvelope<NotebookTag>>(
+    `${route}/${notebookId}/tags/${tagId}`,
+  );
+  return unwrapData(response.data);
+}
+
+export const NotebookService = {
+  list,
+  create,
+  get,
+  getById: get,
+  update,
+  remove,
+  delete: remove,
+  attachTag,
+  detachTag,
+  getNotebooks: list,
+  createNotebook: create,
+  getNotebookById: get,
+  updateNotebook: update,
+  deleteNotebook: remove,
+  attachTagToNotebook: attachTag,
+  detachTagFromNotebook: detachTag,
 };
+
+export const notebookService = NotebookService;

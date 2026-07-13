@@ -1,20 +1,8 @@
 import Link from "next/link";
 import { ClipboardClock } from "lucide-react";
+import type { UpcomingNotebook } from '@/services/contracts';
 
-type UpcomingDueItem = {
-  id: string;
-  title: string;
-  dueDate: string;
-  href: "/";
-};
-
-const  data : UpcomingDueItem[] = [
-    { id: '1', title: 'Estructura de datos...', dueDate: '12 Jun, 2026', href: '/' },
-    { id: '2', title: 'Estructura de datos...', dueDate: '16 Jun, 2026', href: '/' },
-    { id: '3', title: 'Estructura de datos...', dueDate: '16 Jun, 2026', href: '/' }
-  ]
-
-export  default function DueSoonCard() {
+export default function DueSoonCard({ data = [] }: { data?: UpcomingNotebook[] }) {
   return (
     <div
       style={{ gridArea: 'proximos' }}
@@ -29,14 +17,18 @@ export  default function DueSoonCard() {
             </div>
 
       <div className="flex flex-col gap-5">
-        {data.map((item) => (
+        {data.length === 0 ? (
+          <p className="text-sm text-slate-400">No tienes fechas próximas.</p>
+        ) : data.map((item) => (
           <Link
-            key={item.id}
-            href={item.href}
+            key={item.notebook_id}
+            href={`/biblioteca/notebook/${item.notebook_id}`}
             className="flex items-center justify-between gap-3 text-sm transition hover:text-[color:var(--app-primary)]"
           >
-            <span className="min-w-0 flex-1 truncate text-slate-700">{item.title}</span>
-            <span className="shrink-0 text-xs text-slate-400">{item.dueDate}</span>
+            <span className="min-w-0 flex-1 truncate text-slate-700">{item.name}</span>
+            <span className="shrink-0 text-xs text-slate-400">
+              {new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' }).format(new Date(item.due_date))}
+            </span>
           </Link>
         ))}
       </div>

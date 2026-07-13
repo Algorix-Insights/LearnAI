@@ -1,267 +1,159 @@
-import Link from "next/link";
-import { AppShell } from "@/layouts/app-shell";
-import Image from "next/image";
-import BannerHome from "@/assets/BannerHome.svg";
-import Quote from "@/assets/quote.svg";
-import { FileText, Copy, Plus } from "lucide-react";
-import NewNoteBook from "@/assets/newNoteBook.svg"
-import FlameStreak from "@/assets/flameStreak.svg"
-import StreakCard from "@/features/Dashboard/Components/Streak";
-import { requireAuth } from '@/lib/require-auth';
+'use client';
 
+import Image from 'next/image';
+import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import { Copy, FileText } from 'lucide-react';
 
-type User = {
-  userName: string;
+import BannerHome from '@/assets/BannerHome.svg';
+import NewNoteBook from '@/assets/newNoteBook.svg';
+import Quote from '@/assets/quote.svg';
+import { CreateNotebookDialog } from '@/components/CreateNotebookDialog';
+import StreakCard from '@/features/Dashboard/Components/Streak';
+import { useAuth } from '@/features/auth/AuthProvider';
+import { AppShell } from '@/layouts/app-shell';
+import { StatisticsService } from '@/services/Statistics';
+
+const quoteOfTheDay = {
+  phrase: 'El esfuerzo de hoy es el éxito del mañana',
+  author: 'Robert Collier',
 };
 
-type QuotePhrase = {
-  phrase: string;
-  autor: string;
-};
+export default function HomePage() {
+  const { user } = useAuth();
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const statisticsQuery = useQuery({
+    queryKey: ['statistics', 'week', timezone],
+    queryFn: () => StatisticsService.getStatistics({ period: 'week', timezone }),
+  });
+  const statistics = statisticsQuery.data;
+  const today = new Intl.DateTimeFormat('es-MX', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date());
+  const greeting = new Date().getHours() < 12
+    ? 'Buenos días'
+    : new Date().getHours() < 19
+      ? 'Buenas tardes'
+      : 'Buenas noches';
 
-type DeadLineBook = {
-  title: string;
-  month: string;
-  day: string;
-  time: string;
-  dayleft: number;
-  flascard: number;
-  exam: number;
-  href: string;
-};
-
-type StreakDays = {
-  day: string;
-  completed: boolean;
-};
-
-let currentUser: User = { userName: "Bryan" };
-let quoteOfTheDay: QuotePhrase = {
-  phrase: "El esfuerzo de hoy es el exito del mañana",
-  autor: "Robert Collier",
-};
-let bookWithDueTime: DeadLineBook[] = [
-  {
-    title: "Estrutuctura de datos y algoritmos",
-    month: "Julio",
-    day: "8",
-    time: "18:00",
-    dayleft: 2,
-    flascard: 3,
-    exam: 3,
-    href: "/",
-  },
-  {
-    title: "Estrutuctura de datos y algoritmos",
-    month: "Julio",
-    day: "8",
-    time: "18:00",
-    dayleft: 2,
-    flascard: 3,
-    exam: 3,
-    href: "/",
-  },
-  // {
-  //   title: "Estrutuctura de datos y algoritmos",
-  //   month: "Julio",
-  //   day: "8",
-  //   time: "18:00",
-  //   dayleft: 2,
-  //   flascard: 3,
-  //   exam: 3,
-  //   href: "/",
-  // },
-  // {
-  //   title: "Estrutuctura de datos y algoritmos",
-  //   month: "Julio",
-  //   day: "8",
-  //   time: "18:00",
-  //   dayleft: 2,
-  //   flascard: 3,
-  //   exam: 3,
-  //   href: "/",
-  // },
-];
-
-let streakDays: StreakDays[] = [
-  { day: "Lunes", completed: true },
-  { day: "Martes", completed: true },
-  { day: "Miércoles", completed: true },
-  { day: "Jueves", completed: false },
-  { day: "Viernes", completed: false },
-  { day: "Sábado", completed: false },
-  { day: "Domingo", completed: false },
-];
-
-let bestStreak = 15;
-let currentStreak = 7;
-
-let currentDay = new Date().toLocaleDateString("es-ES", {
-  weekday: "long",
-  day: "2-digit",
-  month: "long",
-  year: "numeric",
-});
-
-let todayCapitalized = currentDay.charAt(0).toUpperCase() + currentDay.slice(1);
-
-export default async function HomePage() {
-  await requireAuth();
   return (
     <AppShell>
-      {/* contenedor general */}
       <div className="flex flex-col gap-6">
-        {/* Hero de Bienvenida */}
         <section className="flex flex-col">
-          <p className="text-sm font-light">{todayCapitalized}</p>
-
-          <div className="flex justify-between items-center pr-12 sm:text-left">
-            <div className="flex flex-col gap-2 content-start min-w-0">
+          <p className="text-sm font-light capitalize">{today}</p>
+          <div className="flex items-center justify-between pr-4 sm:pr-12">
+            <div className="min-w-0 space-y-2">
               <p className="text-2xl font-normal text-slate-700 sm:text-3xl">
-                Buenas Tardes, {currentUser.userName}
+                {greeting}, {user?.name || 'estudiante'}
               </p>
               <p className="bg-[linear-gradient(135deg,var(--app-primary),var(--app-secondary))] bg-clip-text text-4xl font-medium text-transparent">
                 ¿Listo para romperla hoy?
               </p>
             </div>
-
-            <div className="hidden shrink-0 sm:block">
-              <Image
-                src={BannerHome}
-                alt="banner de la seccion de hero"
-                width={340}
-                height={110}
-                className="h-auto w-72 shrink-0 pr-5 sm:w-80 lg:w-[26rem]"
-                priority
-              />
-            </div>
+            <Image
+              src={BannerHome}
+              alt="Espacio de estudio"
+              width={340}
+              height={110}
+              className="hidden h-auto w-72 shrink-0 sm:block lg:w-[26rem]"
+              priority
+            />
           </div>
         </section>
 
-        {/* Frase del día */}
-        <div className="bg-[var(--app-bg)] rounded-2xl border border-[color:var(--app-border)] flex items-center gap-4 py-3 px-5 ">
-          <div>
-            <Image
-              src="/"
-              alt="F"
-              width={20}
-              height={20}
-              className="rounded-full shrink-0 object-cover bg-[color:var(--app-border)] w-12 h-12"
-            />
+        <div className="flex items-center gap-4 rounded-2xl border border-[color:var(--app-border)] bg-[var(--app-bg)] px-5 py-3">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[linear-gradient(135deg,var(--app-primary),var(--app-secondary))] text-sm font-bold text-white">
+            {(user?.name?.[0] || 'L').toUpperCase()}
           </div>
-
-          <div className="flex flex-1 flex-col gap-1 self-center">
-            <p className="text-[color:var(--app-primary)] font-medium text-base">
-              Frase del día
-            </p>
-            <p className="text-base font-normal truncate">
-              &rdquo;{quoteOfTheDay.phrase}&rdquo; —{" "}
-              <span className="font-medium text-sm">{quoteOfTheDay.autor}</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-medium text-[color:var(--app-primary)]">Frase del día</p>
+            <p className="truncate text-base font-normal">
+              “{quoteOfTheDay.phrase}” — <span className="text-sm font-medium">{quoteOfTheDay.author}</span>
             </p>
           </div>
-
-          <div>
-            <Image
-              src={Quote}
-              alt="comilla decorativa"
-              width={40}
-              height={40}
-            />
-          </div>
+          <Image src={Quote} alt="" width={40} height={40} aria-hidden="true" className="size-10" />
         </div>
 
-        {/* Grid para cards*/}
-        <div className="grid grid-cols-2 gap-4 lg:h-[200px]">
+        {statisticsQuery.isError ? (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700" role="alert">
+            {statisticsQuery.error instanceof Error
+              ? statisticsQuery.error.message
+              : 'No fue posible cargar tu actividad.'}
+          </div>
+        ) : null}
 
-          {/* Cuadernos con dead lines*/}
-          <div className="bg-white border border-[color:var(--app-border)] rounded-2xl p-5 h-full overflow-y-auto flex flex-col">
-            <p className="shrink-0 font-semibold text-base pb-4">
-              Cuadernos con próximas fechas limites
-            </p>
-            {/* Card para cada cuaderno*/}
-            <div className="flex flex-1 min-h-0 flex-col gap-6 overflow-y-auto">
-              {bookWithDueTime.map((book, index) => (
-                <Link
-                  key={index}
-                  href={book.href}
-                  className="flex items-center gap-16 rounded-md border border-[color:var(--app-border)] bg-[color:var(--app-bg)] px-10 py-5 transition hover:shadow-[0_10px_30px_rgba(15,23,42,0.06)]"
-                >
-                  <div className="flex flex-col shrink-0 text-center gap-1">
-                    <p className="text-[color:var(--app-primary)] text-base font-normal">
-                      {book.month}
-                    </p>
-                    <p className="text-4xl font-light">{book.day}</p>
-                    <p className="text-gray-600 text-sm font-normal">
-                      {book.time}
-                    </p>
-                  </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <section className="flex min-h-80 flex-col rounded-2xl border border-[color:var(--app-border)] bg-white p-5">
+            <p className="pb-4 text-base font-semibold">Próximas fechas límite</p>
+            {statisticsQuery.isPending ? (
+              <p className="text-sm text-slate-400" role="status">Cargando cuadernos…</p>
+            ) : statistics?.upcoming.length ? (
+              <div className="space-y-3">
+                {statistics.upcoming.map((book) => {
+                  const dueDate = new Date(book.due_date);
+                  const reinforcement = statistics.reinforcement.find((item) => item.notebook_id === book.notebook_id);
+                  const daysLeft = Math.max(0, Math.ceil((dueDate.getTime() - Date.now()) / 86_400_000));
 
-                  <div className="flex flex-col gap-6">
-                    <div className="flex gap-4 items-center justify-center">
-                      <span className="h-12 w-12 shrink-0 rounded-full border-2 border-[color:var(--app-secondary)]" />
-
-                      <div className="flex flex-col gap-1">
-                        <p className="text-base font-medium truncate">
-                          {book.title}
+                  return (
+                    <Link
+                      key={book.notebook_id}
+                      href={`/biblioteca/notebook/${book.notebook_id}`}
+                      className="flex items-center gap-5 rounded-xl border border-[color:var(--app-border)] bg-[color:var(--app-bg)] px-5 py-4 transition hover:-translate-y-0.5 hover:shadow-md"
+                    >
+                      <div className="w-16 shrink-0 text-center">
+                        <p className="text-sm capitalize text-[color:var(--app-primary)]">
+                          {new Intl.DateTimeFormat('es-MX', { month: 'short' }).format(dueDate)}
                         </p>
-                        <p className="text-xs font-normal">
-                          Quedan {book.dayleft} días
+                        <p className="text-3xl font-light">{dueDate.getDate()}</p>
+                        <p className="text-xs text-slate-500">
+                          {new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit' }).format(dueDate)}
                         </p>
                       </div>
-                    </div>
-
-                    <div className="flex gap-6">
-                      <p className="flex rounded-lg bg-gray-200 text-xs font-normal p-1.5 gap-2">
-                        <Copy
-                          className="w-4 h-4 shrink-0"
-                          strokeWidth={1}
-                        />
-                        {book.flascard} Flashcards
-                      </p>
-                      <p className=" flex rounded-lg bg-gray-200 text-xs font-normal p-1.5 gap-2">
-                        <FileText
-                          className="w-4 h-4 shrink-0"
-                          strokeWidth={1}
-                        />
-                        {book.exam} Exámenes
-                      </p>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex h-full flex-col gap-6">
-            {/* CTA */}
-            <div className="shrink-0 border border-[color:var(--app-border)] rounded-2xl py-5 px-8 bg-white flex justify-between items-center ">
-              <div className="flex flex-col gap-6">
-                <p className="font-semibold text-base">Crear cuadernos</p>
-                <p className="text-gray-600 text-sm font-base">
-                  Organiza tus apuntes y recursos en un<br></br>
-                  cuaderno para que la IA pueda ayudarte<br></br>
-                  a aprender.
-                </p>
-
-                <Link
-                  href="/"
-                  className="inline-flex  h-11 shrink-0 items-center justify-center gap-1 rounded-full bg-[color:var(--app-primary)] px-5 text-sm font-semibold text-white shadow-[0_16px_30px_rgba(116,82,245,0.24)] transition hover:translate-y-[-1px]"
-                >
-                  Crear cuaderno
-                  <Plus className="h-4 w-4" strokeWidth={2.5} />
-                </Link>
+                      <div className="min-w-0 flex-1 space-y-3">
+                        <div>
+                          <p className="truncate font-medium">{book.name}</p>
+                          <p className="text-xs text-slate-500">Quedan {daysLeft} días</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-xs text-slate-600">
+                          <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1">
+                            <Copy className="h-3.5 w-3.5" /> {reinforcement?.flashcards_count ?? 0} flashcards
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1">
+                            <FileText className="h-3.5 w-3.5" /> {reinforcement?.exams_count ?? 0} exámenes
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
-
-              <div className="flex w-32 shrink-0 justify-center">
-                <Image src={NewNoteBook} alt="" width={150} height={170} className="shrink-0" />
+            ) : (
+              <div className="grid flex-1 place-items-center text-center text-sm text-slate-400">
+                No tienes cuadernos próximos a vencer.
               </div>
-            </div>
+            )}
+          </section>
 
+          <div className="flex flex-col gap-4">
+            <section className="flex items-center justify-between rounded-2xl border border-[color:var(--app-border)] bg-white px-8 py-6">
+              <div className="max-w-sm space-y-4">
+                <div>
+                  <p className="text-base font-semibold">Crear cuaderno</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    Organiza apuntes y fuentes para estudiar con ayuda de IA.
+                  </p>
+                </div>
+                <CreateNotebookDialog triggerLabel="Crear cuaderno" triggerIcon />
+              </div>
+              <Image src={NewNoteBook} alt="" width={150} height={170} aria-hidden="true" />
+            </section>
 
-            {/* Racha de actividad*/}
-            <div className="shrink-0 border border-[color:var(--app-border)] rounded-2xl py-5 px-8 bg-white flex justify-between items-center">
-              <StreakCard />
-            </div>
+            <section className="flex min-h-52 items-center justify-between gap-4 rounded-2xl border border-[color:var(--app-border)] bg-white px-8 py-5">
+              <StreakCard streak={statistics?.streak} />
+            </section>
           </div>
         </div>
       </div>
