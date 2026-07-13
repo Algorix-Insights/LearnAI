@@ -1,66 +1,99 @@
 'use client';
 
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+} from "recharts";
+import { Trophy, TrendingUp } from "lucide-react";
 
-type TimeSlice = {
-  cuaderno: string;
-  minutes: number;
-  color: string;
+type LearningPoint = {
+  date: string;
+  exams_completed: number;
+  flashcards_reviewed: number;
 };
 
-const data: TimeSlice[] = [
-  { cuaderno: 'Cuaderno Uno', minutes: 272, color: 'var(--app-primary)' },
-  { cuaderno: 'Cuaderno Dos', minutes: 272, color: '#a78bfa' },
-  { cuaderno: 'Cuaderno Tres', minutes: 272, color: 'var(--app-secondary)' },
-  { cuaderno: 'Cuaderno Cuatro', minutes: 272, color: '#312e81' },
-];
+type Props = {
+  data: LearningPoint[];
+  averageScore?: number;
+};
 
-const totalMinutes = data.reduce((sum, item) => sum + item.minutes, 0);
+export default function LineChartRating({ data, averageScore = 0 }: Props) {
 
-export default function DonutChartTime() {
-  const hours = Math.floor(totalMinutes / 60);
+  const chartData = data.map(item => ({
+    dia: new Date(item.date).toLocaleDateString("es-MX", {
+      weekday: "short",
+    }),
+    progreso: item.exams_completed,
+  }));
+
+  const hasData =
+    chartData.length > 0 &&
+    chartData.some(item => item.progreso > 0);
 
   return (
-    <div className="flex h-full flex-col items-center gap-6 justify-around">
-      <div className="relative h-48 w-48 shrink-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey="minutes"
-              nameKey="cuaderno"
-              innerRadius="70%"
-              outerRadius="100%"
-              paddingAngle={3}
-              stroke="none"
-            >
-              {data.map((slice, index) => (
-                <Cell key={index} fill={slice.color} />
-              ))}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
+    <div className="flex h-full flex-col gap-1">
 
-        <div className="absolute inset-0 flex items-center justify-center">
-          <p className="text-xl font-bold text-slate-800">{hours}h</p>
-        </div>
-      </div>
+        {hasData ? (
+            <>
+                <div className="flex justify-between items-center">
+                    <p className="text-base font-semibold text-gray-900">
+                        Calificación Promedio
+                    </p>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[color:var(--app-primary)]/30 bg-[color:var(--app-primary)]/5">
+                        <Trophy className="w-5 h-5 text-[color:var(--app-primary)]" strokeWidth={2} />
+                    </div>
+                </div>
 
-      {/* Leyenda */}
-      <div className="flex w-full flex-col gap-4">
-        {data.map((slice, index) => (
-          <div key={index} className="flex items-center gap-4 text-sm">
-            <span
-              className="h-2 w-2 shrink-0 rounded-full"
-              style={{ backgroundColor: slice.color }}
-            />
-            <p className="min-w-0 flex-1 truncate text-slate-600">{slice.cuaderno}</p>
-            <p className="shrink-0 font-medium text-slate-800">
-              {Math.floor(slice.minutes / 60)}h {slice.minutes % 60}m
-            </p>
-          </div>
-        ))}
-      </div>
+                <p className="text-4xl font-semibold text-[color:var(--app-secondary)]">
+                    {Math.round(averageScore)}
+                    <span className="text-lg font-medium">%</span>
+                </p>
+                <p className="text-xs text-slate-800 font-base">Media de flashcards y exámenes</p>
+
+                <div className="h-32 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--app-border)" />
+                            <XAxis dataKey="dia" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                            <Tooltip
+                                contentStyle={{ borderRadius: 12, border: "1px solid var(--app-border)", fontSize: 12 }}
+                                labelStyle={{ color: "#000" }}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="progreso"
+                                stroke="var(--app-secondary)"
+                                strokeWidth={2.5}
+                                dot={{ fill: "var(--app-secondary)", stroke: "white", strokeWidth: 2, r: 4 }}
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            </>
+        ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+
+                <TrendingUp
+                    className="h-12 w-12 text-[color:var(--app-primary)] opacity-40"
+                />
+
+                <div>
+                    <p className="font-medium text-slate-700">
+                        Aún no tienes calificaciones
+                    </p>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                        Completa flashcards y exámenes para ver tu progreso aquí.
+                    </p>
+                </div>
+
+            </div>
+        )}
+
     </div>
   );
 }
