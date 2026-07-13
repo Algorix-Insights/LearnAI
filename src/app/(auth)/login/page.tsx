@@ -125,7 +125,7 @@ export default function LoginPage() {
         <div className="absolute -bottom-14 left-8 h-48 w-48 rounded-full bg-indigo-950/35 blur-3xl" />
 
         <div className="relative flex h-full min-h-[18rem] flex-col justify-between rounded-[1.5rem] border border-white/20 bg-white/10 p-5 backdrop-blur-sm sm:p-6 lg:min-h-[34rem] lg:p-7">
-          <div className="text-[9rem] font-semibold leading-none tracking-tight">*</div>
+          <div aria-hidden="true" className="text-[9rem] font-semibold leading-none tracking-tight">*</div>
 
           <div className="max-w-sm space-y-3">
             <p className="text-sm font-medium text-white/85 sm:text-base">Fácil y rápido</p>
