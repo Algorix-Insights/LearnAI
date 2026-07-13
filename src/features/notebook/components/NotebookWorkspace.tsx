@@ -17,7 +17,7 @@ import NotebookTabsSection from './NotebookTabsSection';
 import NotebookWelcomeSection from './NotebookWelcomeSection';
 import SidebarLeft from './SidebarLeft';
 
-const quickActions = ['Flashcards', 'Examen V/F', 'Opción múltiple', 'Preguntas abiertas'];
+const quickActions = ['Examen V/F', 'Opción múltiple', 'Preguntas abiertas'];
 
 type ChatSubmission = {
   content: string;
@@ -54,6 +54,10 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
   const [failedConversationId, setFailedConversationId] = useState<string | null>(null);
   const [sourcesByMessage, setSourcesByMessage] = useState<Record<string, RagSource[]>>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const sidebarPanelRef = useRef<HTMLDivElement>(null);
+  const sidebarTriggerRef = useRef<HTMLButtonElement>(null);
+  const sidebarCloseRef = useRef<HTMLButtonElement>(null);
+  const wasSidebarOpenRef = useRef(false);
   const mutationConversationIdRef = useRef<string | null>(null);
   const chatCooldown = useCountdown();
   const generationCooldown = useCountdown();
@@ -83,12 +87,37 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
   }, [activeConversationId, firstConversationId]);
 
   useEffect(() => {
-    if (!isSidebarOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsSidebarOpen(false);
+    if (!isSidebarOpen) {
+      if (wasSidebarOpenRef.current) sidebarTriggerRef.current?.focus();
+      wasSidebarOpenRef.current = false;
+      return;
+    }
+
+    wasSidebarOpenRef.current = true;
+    sidebarCloseRef.current?.focus();
+    const handleSidebarKeys = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsSidebarOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const focusable = sidebarPanelRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
+    window.addEventListener('keydown', handleSidebarKeys);
+    return () => window.removeEventListener('keydown', handleSidebarKeys);
   }, [isSidebarOpen]);
 
   const messagesQuery = useQuery({
@@ -201,11 +230,6 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
   });
   const generateResource = useMutation({
     mutationFn: async (action: string) => {
-      if (action === 'Flashcards') {
-        const result = await RagService.generateFlashcards(notebookId, { count: 10 });
-        return `${result.data.length} flashcards generadas.`;
-      }
-
       const payload = action === 'Examen V/F'
         ? { true_false_count: 10, multiple_choice_count: 0, open_count: 0 }
         : action === 'Opción múltiple'
@@ -216,7 +240,7 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
     },
     onSuccess: async (message) => {
       setNotice(message);
-      await queryClient.invalidateQueries({ queryKey: ['notebooks', notebookId, 'flashcards'] });
+      await queryClient.invalidateQueries({ queryKey: ['statistics'] });
     },
     onError: (error) => {
       setNotice(null);
@@ -253,7 +277,12 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
     ? sendMessage.error
     : null;
   const chatError = sendErrorForActiveConversation ?? messagesQuery.error ?? conversationsQuery.error ?? createConversation.error;
-  const interactionError = chatError ?? generateResource.error;
+  const interactionError = chatError ?? documentsQuery.error ?? generateResource.error;
+  const interactionCooldownSeconds = chatError && chatCooldown.isActive
+    ? chatCooldown.remainingSeconds
+    : !documentsQuery.isError && generateResource.error && generationCooldown.isActive
+      ? generationCooldown.remainingSeconds
+      : 0;
   const handleSend = (content: string, conversationId: string | null = activeConversationId) => {
     if (!hasProcessedSources) {
       setNotice('Sube y procesa una fuente antes de iniciar el chat.');
@@ -302,16 +331,20 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
           />
         ) : null}
         <div
+          ref={sidebarPanelRef}
           id="notebook-resource-panel"
-          className={`fixed inset-y-0 left-0 z-40 w-[min(88vw,300px)] transform bg-white shadow-2xl transition-transform duration-200 motion-reduce:transition-none lg:static lg:z-auto lg:w-auto lg:translate-x-0 lg:shadow-none ${
-            isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          className={`fixed inset-y-0 left-0 z-40 w-[min(88vw,300px)] transform bg-white shadow-2xl transition-[transform,visibility] duration-200 motion-reduce:transition-none lg:visible lg:static lg:z-auto lg:w-auto lg:translate-x-0 lg:shadow-none ${
+            isSidebarOpen ? 'visible translate-x-0' : 'invisible -translate-x-full'
           }`}
-          aria-hidden={!isSidebarOpen ? true : undefined}
+          role={isSidebarOpen ? 'dialog' : undefined}
+          aria-modal={isSidebarOpen ? true : undefined}
+          aria-label={isSidebarOpen ? 'Recursos del cuaderno' : undefined}
         >
           <SidebarLeft
             notebookId={notebookId}
             notebook={notebookQuery.data}
             onClose={() => setIsSidebarOpen(false)}
+            closeButtonRef={sidebarCloseRef}
           />
         </div>
         <main className="flex h-full min-w-0 flex-col overflow-hidden">
@@ -320,6 +353,7 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
             onTitleChange={(name) => updateNotebook.mutate(name)}
             onToggleSidebar={() => setIsSidebarOpen((current) => !current)}
             isSidebarOpen={isSidebarOpen}
+            sidebarButtonRef={sidebarTriggerRef}
           />
           <NotebookTabsSection
             notebookTitle={notebookQuery.data.name || notebookId}
@@ -340,6 +374,8 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
             isSendDisabled={sendMessage.isPending || chatCooldown.isActive || !hasProcessedSources}
             sendDisabledReason={documentsQuery.isPending
               ? 'Comprobando fuentes…'
+              : documentsQuery.isError
+                ? 'No pudimos comprobar tus fuentes. Reintenta la carga.'
               : !hasProcessedSources
                 ? 'Sube y procesa una fuente para habilitar el chat.'
                 : chatCooldown.isActive
@@ -353,15 +389,25 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
             error={interactionError instanceof Error
               ? `${interactionError.message}${sendErrorForActiveConversation && !activeRetryableMessage
                 ? ' Tu pregunta puede haberse guardado; actualiza la conversación antes de volver a enviarla.'
-                : ''}${chatCooldown.isActive || generationCooldown.isActive
-                ? ` Intenta de nuevo en ${Math.max(chatCooldown.remainingSeconds, generationCooldown.remainingSeconds)}s.`
+                : ''}${interactionCooldownSeconds > 0
+                ? ` Intenta de nuevo en ${interactionCooldownSeconds}s.`
                 : ''}`
               : null}
             statusMessage={notice}
             onSend={handleSend}
-            onRetry={chatError ? retryChat : undefined}
-            retryLabel={activeRetryableMessage ? 'Reintentar pregunta' : sendErrorForActiveConversation ? 'Actualizar conversación' : 'Reintentar'}
-            canRetry={!chatCooldown.isActive}
+            onRetry={chatError
+              ? retryChat
+              : documentsQuery.isError
+                ? () => void documentsQuery.refetch()
+                : undefined}
+            retryLabel={activeRetryableMessage
+              ? 'Reintentar pregunta'
+              : sendErrorForActiveConversation
+                ? 'Actualizar conversación'
+                : documentsQuery.isError
+                  ? 'Reintentar fuentes'
+                  : 'Reintentar'}
+            canRetry={documentsQuery.isError || !chatCooldown.isActive}
             onQuickAction={(action) => generateResource.mutate(action)}
           />
         </main>

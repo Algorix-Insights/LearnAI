@@ -3,7 +3,12 @@ import { ChevronLeft, X } from 'lucide-react';
 
 import { Button } from '@/components/Button';
 
-export default function SidebarHeader({ onClose }: { onClose?: () => void }) {
+type SidebarHeaderProps = {
+    onClose?: () => void;
+    closeButtonRef?: React.Ref<HTMLButtonElement>;
+};
+
+export default function SidebarHeader({ onClose, closeButtonRef }: SidebarHeaderProps) {
     return (
         <div className="flex h-16 items-center justify-between border-b border-[rgba(116,82,245,0.12)] px-4">
             <Link
@@ -15,6 +20,7 @@ export default function SidebarHeader({ onClose }: { onClose?: () => void }) {
             </Link>
 
             <Button
+                ref={closeButtonRef}
                 variant="pageIcon"
                 size="icon"
                 type="button"

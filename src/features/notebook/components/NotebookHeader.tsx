@@ -9,6 +9,7 @@ type NotebookHeaderProps = {
     onTitleChange?: (newTitle: string) => void;
     onToggleSidebar?: () => void;
     isSidebarOpen?: boolean;
+    sidebarButtonRef?: React.Ref<HTMLButtonElement>;
 };
 
 export default function NotebookHeader({
@@ -16,6 +17,7 @@ export default function NotebookHeader({
     onTitleChange,
     onToggleSidebar,
     isSidebarOpen = false,
+    sidebarButtonRef,
 }: NotebookHeaderProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [title, setTitle] = useState(initialTitle);
@@ -54,12 +56,13 @@ export default function NotebookHeader({
         <header className="flex h-16 items-center justify-between gap-4 border-b border-[rgba(116,82,245,0.12)] bg-white px-4 sm:px-6">
             <div className="flex min-w-0 items-center gap-3">
                 <Button
+                    ref={sidebarButtonRef}
                     variant="pageIcon"
                     size="icon"
                     type="button"
                     className="lg:hidden"
                     onClick={onToggleSidebar}
-                    aria-label="Abrir panel de recursos"
+                    aria-label={isSidebarOpen ? 'Cerrar panel de recursos' : 'Abrir panel de recursos'}
                     aria-controls="notebook-resource-panel"
                     aria-expanded={isSidebarOpen}
                 >
