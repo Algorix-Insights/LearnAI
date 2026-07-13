@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type UIEvent } from 'react';
 import { ArrowDown, RefreshCw, Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/Button';
-import type { Message } from '@/services/contracts';
+import type { Message, RagSource } from '@/services/contracts';
 
 import ChatMessage from './ChatMessage';
 import NotebookComposer from './NotebookComposer';
@@ -14,6 +14,7 @@ type NotebookWelcomeSectionProps = {
   actions: string[];
   userName?: string | null;
   messages: Message[];
+  sourcesByMessage?: Record<string, RagSource[]>;
   pendingMessage?: string | null;
   sourceCount: number;
   isLoadingMessages?: boolean;
@@ -36,6 +37,7 @@ export default function NotebookWelcomeSection({
   actions,
   userName,
   messages,
+  sourcesByMessage = {},
   pendingMessage,
   sourceCount,
   isLoadingMessages = false,
@@ -115,7 +117,11 @@ export default function NotebookWelcomeSection({
           {!isLoadingMessages && hasConversation ? (
             <div className="space-y-3 text-left" aria-live="polite" aria-relevant="additions">
               {messages.map((message, index) => (
-                <ChatMessage key={message.message_id ?? `${message.role}-${message.order_message ?? index}`} message={message} />
+                <ChatMessage
+                  key={message.message_id ?? `${message.role}-${message.order_message ?? index}`}
+                  message={message}
+                  sources={message.message_id ? sourcesByMessage[message.message_id] : undefined}
+                />
               ))}
               {pendingMessage ? (
                 <ChatMessage

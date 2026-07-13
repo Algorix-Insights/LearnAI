@@ -36,6 +36,10 @@ export default function SalasDeEstudioPage() {
         limit: current?.limit ?? 20,
         offset: current?.offset ?? 0,
       }));
+      void queryClient.invalidateQueries({
+        queryKey: ['rooms'],
+        refetchType: 'active',
+      });
     },
   });
 

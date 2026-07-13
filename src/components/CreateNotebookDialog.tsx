@@ -118,6 +118,10 @@ export function CreateNotebookDialog({
         limit: current?.limit ?? 500,
         offset: current?.offset ?? 0,
       }));
+      void queryClient.invalidateQueries({
+        queryKey: ['notebooks'],
+        refetchType: 'active',
+      });
       void queryClient.invalidateQueries({ queryKey: ['statistics'] });
       setTagWarning(warning);
       setOpen(false);

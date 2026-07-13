@@ -10,7 +10,7 @@ import { ExamService } from '@/services/Exam';
 import { NotebookService } from '@/services/Notebook';
 import { RagService } from '@/services/Rag';
 import { ApiClientError } from '@/services/api';
-import type { MessageListResponse } from '@/services/contracts';
+import type { MessageListResponse, RagSource } from '@/services/contracts';
 
 import NotebookHeader from './NotebookHeader';
 import NotebookTabsSection from './NotebookTabsSection';
@@ -18,6 +18,15 @@ import NotebookWelcomeSection from './NotebookWelcomeSection';
 import SidebarLeft from './SidebarLeft';
 
 const quickActions = ['Flashcards', 'Examen V/F', 'Opción múltiple', 'Preguntas abiertas'];
+
+type ChatSubmission = {
+  content: string;
+  conversationId: string | null;
+  clientMessageId: string;
+  submittedAt: string;
+};
+
+type RetryableChatSubmission = Pick<ChatSubmission, 'content' | 'conversationId'>;
 
 async function listConversationMessages(conversationId: string): Promise<MessageListResponse> {
   const limit = 100;
@@ -40,8 +49,10 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
   const { user } = useAuth();
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
-  const [retryableMessage, setRetryableMessage] = useState<string | null>(null);
+  const [pendingMessage, setPendingMessage] = useState<ChatSubmission | null>(null);
+  const [retryableMessage, setRetryableMessage] = useState<RetryableChatSubmission | null>(null);
+  const [failedConversationId, setFailedConversationId] = useState<string | null>(null);
+  const [sourcesByMessage, setSourcesByMessage] = useState<Record<string, RagSource[]>>({});
   const mutationConversationIdRef = useRef<string | null>(null);
   const chatCooldown = useCountdown();
   const generationCooldown = useCountdown();
@@ -83,52 +94,92 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
     },
   });
   const sendMessage = useMutation({
-    mutationFn: async (content: string) => {
-      let conversationId = activeConversationId;
+    mutationFn: async (submission: ChatSubmission) => {
+      let conversationId = submission.conversationId;
       if (!conversationId) {
         const conversation = await RagService.createConversation(notebookId, {
-          name: content.slice(0, 80),
+          name: submission.content.slice(0, 80),
         });
         if (!conversation.conversation_id) {
           throw new Error('La API no devolvió el identificador de la conversación.');
         }
         conversationId = conversation.conversation_id;
         setActiveConversationId(conversationId);
+        setPendingMessage((current) => current?.clientMessageId === submission.clientMessageId
+          ? { ...current, conversationId }
+          : current);
       }
       mutationConversationIdRef.current = conversationId;
-      return RagService.sendMessage(conversationId, { content });
+      return RagService.sendMessage(conversationId, { content: submission.content });
     },
-    onSuccess: (response) => {
+    onSuccess: (response, submission) => {
       const conversationId = response.data.conversation_id ?? mutationConversationIdRef.current;
+      if (response.data.message_id && response.sources.length > 0) {
+        setSourcesByMessage((current) => ({
+          ...current,
+          [response.data.message_id as string]: response.sources,
+        }));
+      }
       if (conversationId) {
         queryClient.setQueryData<MessageListResponse>(
           ['conversations', conversationId, 'messages'],
           (current) => {
-            if (!current || current.data.some((message) => message.message_id === response.data.message_id)) return current;
-            return { ...current, data: [...current.data, response.data] };
+            const existing = current?.data ?? [];
+            if (response.data.message_id && existing.some((message) => message.message_id === response.data.message_id)) return current;
+
+            const maxOrder = existing.reduce((maximum, message) => Math.max(maximum, message.order_message ?? 0), 0);
+            const assistantOrder = response.data.order_message ?? maxOrder + 2;
+            const userOrder = Math.max(assistantOrder - 1, 1);
+            const hasPersistedUser = existing.some((message) => (
+              message.role === 'user'
+              && message.order_message === userOrder
+            ));
+            const userMessage = {
+              message_id: submission.clientMessageId,
+              conversation_id: conversationId,
+              role: 'user' as const,
+              content: submission.content,
+              order_message: userOrder,
+              created_at: submission.submittedAt,
+            };
+            const data = [
+              ...existing,
+              ...(hasPersistedUser ? [] : [userMessage]),
+              response.data,
+            ].sort((left, right) => (left.order_message ?? Number.MAX_SAFE_INTEGER) - (right.order_message ?? Number.MAX_SAFE_INTEGER));
+
+            return {
+              data,
+              limit: current?.limit ?? 100,
+              offset: current?.offset ?? 0,
+            };
           },
         );
       }
       setRetryableMessage(null);
+      setFailedConversationId(null);
+      setPendingMessage(null);
     },
-    onError: (error, content) => {
+    onError: (error, submission) => {
+      const conversationId = mutationConversationIdRef.current;
       const canSafelyRetry = mutationConversationIdRef.current === null
         || (error instanceof ApiClientError && error.status === 429);
-      setRetryableMessage(canSafelyRetry ? content : null);
+      setRetryableMessage(canSafelyRetry ? { content: submission.content, conversationId } : null);
+      setFailedConversationId(conversationId);
       if (error instanceof ApiClientError && error.retryAfterSeconds) {
         chatCooldown.start(error.retryAfterSeconds);
       }
     },
-    onSettled: async () => {
+    onSettled: async (_response, error) => {
       const conversationId = mutationConversationIdRef.current;
       const requests = [
         queryClient.invalidateQueries({ queryKey: ['notebooks', notebookId, 'conversations'] }),
       ];
-      if (conversationId) {
+      if (error && conversationId && !(error instanceof ApiClientError && error.status === 429)) {
         requests.push(queryClient.invalidateQueries({ queryKey: ['conversations', conversationId, 'messages'] }));
       }
       await Promise.all(requests);
-      setPendingMessage(null);
+      if (error) setPendingMessage(null);
     },
   });
   const updateNotebook = useMutation({
@@ -179,23 +230,42 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
     );
   }
 
-  const chatError = sendMessage.error ?? messagesQuery.error ?? conversationsQuery.error ?? createConversation.error;
+  const pendingMessageForActiveConversation = pendingMessage?.conversationId === activeConversationId
+    ? pendingMessage.content
+    : null;
+  const isSendingActiveConversation = sendMessage.isPending
+    && pendingMessage?.conversationId === activeConversationId;
+  const activeRetryableMessage = retryableMessage?.conversationId === activeConversationId
+    ? retryableMessage
+    : null;
+  const sendErrorForActiveConversation = sendMessage.isError
+    && failedConversationId === activeConversationId
+    ? sendMessage.error
+    : null;
+  const chatError = sendErrorForActiveConversation ?? messagesQuery.error ?? conversationsQuery.error ?? createConversation.error;
   const interactionError = chatError ?? generateResource.error;
-  const handleSend = (content: string) => {
+  const handleSend = (content: string, conversationId: string | null = activeConversationId) => {
     if (!hasProcessedSources) {
       setNotice('Sube y procesa una fuente antes de iniciar el chat.');
       return;
     }
+    const submission: ChatSubmission = {
+      content,
+      conversationId,
+      clientMessageId: crypto.randomUUID(),
+      submittedAt: new Date().toISOString(),
+    };
     setNotice(null);
     setRetryableMessage(null);
-    setPendingMessage(content);
+    setFailedConversationId(null);
+    setPendingMessage(submission);
     mutationConversationIdRef.current = null;
     sendMessage.reset();
-    sendMessage.mutate(content);
+    sendMessage.mutate(submission);
   };
   const retryChat = () => {
-    if (retryableMessage) {
-      handleSend(retryableMessage);
+    if (activeRetryableMessage) {
+      handleSend(activeRetryableMessage.content, activeRetryableMessage.conversationId);
       return;
     }
     if (sendMessage.isError || messagesQuery.isError) {
@@ -230,21 +300,24 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
             actions={quickActions}
             userName={user?.name}
             messages={messagesQuery.data?.data ?? []}
-            pendingMessage={pendingMessage}
+            sourcesByMessage={sourcesByMessage}
+            pendingMessage={pendingMessageForActiveConversation}
             sourceCount={documents.length}
             isLoadingMessages={Boolean(activeConversationId) && messagesQuery.isPending}
-            isSending={sendMessage.isPending}
-            isSendDisabled={chatCooldown.isActive || !hasProcessedSources}
+            isSending={isSendingActiveConversation}
+            isSendDisabled={sendMessage.isPending || chatCooldown.isActive || !hasProcessedSources}
             sendDisabledReason={documentsQuery.isPending
               ? 'Comprobando fuentes…'
               : !hasProcessedSources
                 ? 'Sube y procesa una fuente para habilitar el chat.'
+                : sendMessage.isPending && !isSendingActiveConversation
+                  ? 'LearnAI está respondiendo en otra conversación.'
                 : undefined}
             hasProcessedSources={hasProcessedSources}
             isLoadingSources={documentsQuery.isPending}
             isGenerating={generateResource.isPending || generationCooldown.isActive}
             error={interactionError instanceof Error
-              ? `${interactionError.message}${sendMessage.isError && !retryableMessage
+              ? `${interactionError.message}${sendErrorForActiveConversation && !activeRetryableMessage
                 ? ' Tu pregunta puede haberse guardado; actualiza la conversación antes de volver a enviarla.'
                 : ''}${chatCooldown.isActive || generationCooldown.isActive
                 ? ` Intenta de nuevo en ${Math.max(chatCooldown.remainingSeconds, generationCooldown.remainingSeconds)}s.`
@@ -253,7 +326,7 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
             statusMessage={notice}
             onSend={handleSend}
             onRetry={chatError ? retryChat : undefined}
-            retryLabel={retryableMessage ? 'Reintentar pregunta' : sendMessage.isError ? 'Actualizar conversación' : 'Reintentar'}
+            retryLabel={activeRetryableMessage ? 'Reintentar pregunta' : sendErrorForActiveConversation ? 'Actualizar conversación' : 'Reintentar'}
             canRetry={!chatCooldown.isActive}
             onQuickAction={(action) => generateResource.mutate(action)}
           />

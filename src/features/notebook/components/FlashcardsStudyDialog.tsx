@@ -170,7 +170,9 @@ export default function FlashcardsStudyDialog({
                     className="relative min-h-[280px] w-full rounded-[1.5rem] text-left outline-none transition-transform duration-500 [transform-style:preserve-3d] focus-visible:ring-4 focus-visible:ring-[#7452F5]/20"
                     style={{ transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
                     aria-pressed={isFlipped}
-                    aria-label={isFlipped ? 'Mostrar pregunta' : 'Mostrar respuesta'}
+                    aria-label={isFlipped
+                      ? `Respuesta: ${currentCard.answer}. Voltear para mostrar la pregunta: ${currentCard.question}`
+                      : `Pregunta: ${currentCard.question}. Voltear para mostrar la respuesta`}
                   >
                     <span
                       aria-hidden={isFlipped}

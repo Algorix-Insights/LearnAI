@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Check, Copy, Sparkles } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
-import type { Message } from '@/services/contracts';
+import type { Message, RagSource } from '@/services/contracts';
 
 const MarkdownMessage = dynamic(() => import('./MarkdownMessage'), {
   loading: () => <span className="text-slate-400">Formateando respuesta…</span>,
@@ -13,9 +13,12 @@ const MarkdownMessage = dynamic(() => import('./MarkdownMessage'), {
 type ChatMessageProps = {
   message: Message;
   isPending?: boolean;
+  sources?: RagSource[];
 };
 
-export default function ChatMessage({ message, isPending = false }: ChatMessageProps) {
+const emptySources: RagSource[] = [];
+
+function ChatMessage({ message, isPending = false, sources = emptySources }: ChatMessageProps) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === 'user';
   const content = message.content ?? '';
@@ -60,6 +63,21 @@ export default function ChatMessage({ message, isPending = false }: ChatMessageP
           : 'rounded-[1.35rem] rounded-tl-md border border-[color:var(--app-border)] bg-white px-4 py-3 text-sm leading-6 text-slate-700 shadow-[0_12px_32px_rgba(15,23,42,0.04)] sm:px-5 sm:py-4'}
       >
         {isUser ? <p className="whitespace-pre-wrap break-words">{content}</p> : <MarkdownMessage content={content} />}
+        {!isUser && sources.length > 0 ? (
+          <details className="mt-4 border-t border-slate-100 pt-3 text-xs">
+            <summary className="cursor-pointer select-none font-medium text-[#6545da] outline-none focus-visible:ring-2 focus-visible:ring-[#7452F5]/20">
+              {sources.length} {sources.length === 1 ? 'fuente utilizada' : 'fuentes utilizadas'}
+            </summary>
+            <ol className="mt-3 space-y-2">
+              {sources.map((source, index) => (
+                <li key={source.chunk_id ?? `${source.document_id}-${index}`} className="rounded-lg bg-slate-50 px-3 py-2 text-slate-600">
+                  <p className="font-medium text-slate-700">[{index + 1}] {source.document_name || 'Fuente del cuaderno'}</p>
+                  {source.content ? <p className="mt-1 max-h-16 overflow-hidden leading-5 text-slate-500">{source.content}</p> : null}
+                </li>
+              ))}
+            </ol>
+          </details>
+        ) : null}
       </div>
 
       <div className={`mt-1.5 flex min-h-7 items-center gap-2 px-1 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -84,3 +102,5 @@ export default function ChatMessage({ message, isPending = false }: ChatMessageP
     </article>
   );
 }
+
+export default memo(ChatMessage);
