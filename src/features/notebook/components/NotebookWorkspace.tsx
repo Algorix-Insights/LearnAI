@@ -310,6 +310,8 @@ export default function NotebookWorkspace({ notebookId }: { notebookId: string }
               ? 'Comprobando fuentes…'
               : !hasProcessedSources
                 ? 'Sube y procesa una fuente para habilitar el chat.'
+                : chatCooldown.isActive
+                  ? `Chat disponible en ${chatCooldown.remainingSeconds}s.`
                 : sendMessage.isPending && !isSendingActiveConversation
                   ? 'LearnAI está respondiendo en otra conversación.'
                 : undefined}
