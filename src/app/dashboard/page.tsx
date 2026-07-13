@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { Trophy } from 'lucide-react';
+import { ArrowRight, BookOpen, Trophy } from 'lucide-react';
 
 import Stars from '@/assets/stars.svg';
 import BarChartLearning from '@/features/Dashboard/Components/BarChart';
@@ -37,6 +38,13 @@ function hasNotebookId(
   return Boolean(notebook.notebook_id);
 }
 
+function notebookTimestamp(notebook: Notebook) {
+  const timestamp = notebook.created_at
+    ? new Date(notebook.created_at).getTime()
+    : 0;
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [period, setPeriod] = useState<StatisticsPeriod>('week');
@@ -52,7 +60,8 @@ export default function DashboardPage() {
   const statistics = statisticsQuery.data;
   const notebooks = (notebooksQuery.data?.data ?? [])
     .filter(hasNotebookId)
-    .filter((notebook) => notebook.status !== 'deleted');
+    .filter((notebook) => notebook.status !== 'deleted')
+    .sort((left, right) => notebookTimestamp(right) - notebookTimestamp(left));
 
   const reinforcement: ReinforcementNotebook[] = statistics
     ? [
@@ -132,6 +141,68 @@ export default function DashboardPage() {
             priority
           />
         </div>
+
+        <section className="rounded-2xl border border-[color:var(--app-border)] bg-white p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-base font-semibold text-slate-900">Tus cuadernos</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Cuadernos personales y compartidos disponibles para tu usuario.
+              </p>
+            </div>
+            <Link
+              href="/biblioteca"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[color:var(--app-primary)] hover:underline"
+            >
+              Ver biblioteca
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          {notebooksQuery.isPending ? (
+            <p className="mt-5 text-sm text-slate-500" role="status">
+              Cargando cuadernos…
+            </p>
+          ) : notebooksQuery.isError ? (
+            <p className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700" role="alert">
+              {notebooksQuery.error instanceof Error
+                ? notebooksQuery.error.message
+                : 'No fue posible cargar tus cuadernos.'}
+            </p>
+          ) : notebooks.length === 0 ? (
+            <p className="mt-5 rounded-xl border border-dashed border-[color:var(--app-border)] p-5 text-sm text-slate-500">
+              Aún no tienes cuadernos relacionados con tu usuario.
+            </p>
+          ) : (
+            <div className="mt-5 grid max-h-80 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
+              {notebooks.map((notebook) => (
+                <Link
+                  key={notebook.notebook_id}
+                  href={`/biblioteca/notebook/${notebook.notebook_id}`}
+                  className="flex items-center gap-3 rounded-xl border border-[color:var(--app-border)] bg-slate-50/70 p-4 transition hover:border-[color:var(--app-primary)] hover:bg-white"
+                >
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[color:var(--app-primary)]/10 text-[color:var(--app-primary)]">
+                    <BookOpen className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-slate-800">
+                      {notebook.name || 'Cuaderno sin nombre'}
+                    </span>
+                    <span className="mt-1 block truncate text-xs text-slate-500">
+                      {notebook.due_date
+                        ? `Vence ${new Intl.DateTimeFormat('es-MX', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          }).format(new Date(notebook.due_date))}`
+                        : 'Sin fecha límite'}
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
 
         {statisticsQuery.isPending ? (
           <div className="grid min-h-72 place-items-center rounded-2xl border border-[color:var(--app-border)] bg-white text-sm text-slate-500" role="status">

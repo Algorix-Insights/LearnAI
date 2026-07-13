@@ -84,7 +84,7 @@ export function BibliotecaContent() {
   const [activeFilter, setActiveFilter] = useState(filters[0]);
   const notebooksQuery = useQuery({
     queryKey: ['notebooks'],
-    queryFn: () => NotebookService.list({ limit: 100, offset: 0 }),
+    queryFn: () => NotebookService.list({ limit: 500, offset: 0 }),
   });
 
   const notebooks = (notebooksQuery.data?.data ?? []).filter(hasNotebookId);
