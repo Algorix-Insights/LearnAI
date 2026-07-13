@@ -50,9 +50,10 @@ Estos servicios están diseñados para Client Components y hooks: usan `/backend
 El backend no crea cookies ni mantiene sesión. Login, registro y verificación OTP devuelven tokens JSON; el interceptor agrega `Authorization: Bearer <access_token>` a cada ruta protegida.
 
 - `saveSession()` guarda `access_token`, `refresh_token`, sesión y expiración en `sessionStorage`.
-- `AuthProvider` restaura cada recarga de la pestaña con `GET /auth/me` antes de mostrar contenido protegido.
-- Usuario autenticado significa `Boolean(access_token)` y `/auth/me` válido; un objeto `user` sin token no autentica.
+- `AuthProvider` restaura cada recarga de la pestaña con `GET /users/me` antes de mostrar contenido protegido.
+- Usuario autenticado significa `Boolean(access_token)` y `/users/me` válido; un objeto `user` sin token no autentica.
 - Registro sin contraseña inicia OTP. Login OTP usa `should_create_user: false`.
+- `verifyOtp` acepta exactamente uno de `token` (con `email`) o `token_hash` (desde el Magic Link); nunca envíes ambos.
 - Recuperación verifica OTP con `type: "recovery"` y envía ese token solo a `/auth/reset-password`.
 - Logout borra siempre almacenamiento y caché local, aunque falle `/auth/logout`.
 - No uses `withCredentials`; backend no usa cookies.
@@ -83,6 +84,17 @@ const result = await RagService.sendMessage(conversationId, {
 
 console.log(result.data.content, result.sources);
 ```
+
+```ts
+const documents = await RagService.listDocuments(notebookId, {
+  limit: 100,
+  offset: 0,
+});
+
+await RagService.uploadDocument(notebookId, { file });
+```
+
+`POST /documents` está retirado. El servicio conserva el `GET /documents` compatible y filtra el resultado accesible por `notebookId`; upload y eliminación siempre usan las rutas anidadas del cuaderno.
 
 ```ts
 import { StatisticsService } from '@/services/Statistics';

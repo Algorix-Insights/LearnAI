@@ -1,24 +1,13 @@
 'use client';
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import type { NotebookStudyTime } from '@/services/contracts';
 
-type TimeSlice = {
-  cuaderno: string;
-  minutes: number;
-  color: string;
-};
+const colors = ['var(--app-primary)', '#a78bfa', 'var(--app-secondary)', '#312e81'];
 
-const data: TimeSlice[] = [
-  { cuaderno: 'Cuaderno Uno', minutes: 272, color: 'var(--app-primary)' },
-  { cuaderno: 'Cuaderno Dos', minutes: 272, color: '#a78bfa' },
-  { cuaderno: 'Cuaderno Tres', minutes: 272, color: 'var(--app-secondary)' },
-  { cuaderno: 'Cuaderno Cuatro', minutes: 272, color: '#312e81' },
-];
-
-const totalMinutes = data.reduce((sum, item) => sum + item.minutes, 0);
-
-export default function DonutChartTime() {
-  const hours = Math.floor(totalMinutes / 60);
+export default function DonutChartTime({ data = [] }: { data?: NotebookStudyTime[] }) {
+  const totalSeconds = data.reduce((sum, item) => sum + item.study_seconds, 0);
+  const hours = Math.floor(totalSeconds / 3600);
 
   return (
     <div className="flex h-full flex-col items-center gap-6 justify-around">
@@ -27,15 +16,15 @@ export default function DonutChartTime() {
           <PieChart>
             <Pie
               data={data}
-              dataKey="minutes"
-              nameKey="cuaderno"
+              dataKey="study_seconds"
+              nameKey="name"
               innerRadius="70%"
               outerRadius="100%"
               paddingAngle={3}
               stroke="none"
             >
               {data.map((slice, index) => (
-                <Cell key={index} fill={slice.color} />
+                <Cell key={slice.notebook_id} fill={colors[index % colors.length]} />
               ))}
             </Pie>
           </PieChart>
@@ -48,15 +37,17 @@ export default function DonutChartTime() {
 
       {/* Leyenda */}
       <div className="flex w-full flex-col gap-4">
-        {data.map((slice, index) => (
-          <div key={index} className="flex items-center gap-4 text-sm">
+        {data.length === 0 ? (
+          <p className="text-center text-sm text-slate-400">Aún no hay tiempo registrado.</p>
+        ) : data.map((slice, index) => (
+          <div key={slice.notebook_id} className="flex items-center gap-4 text-sm">
             <span
               className="h-2 w-2 shrink-0 rounded-full"
-              style={{ backgroundColor: slice.color }}
+              style={{ backgroundColor: colors[index % colors.length] }}
             />
-            <p className="min-w-0 flex-1 truncate text-slate-600">{slice.cuaderno}</p>
+            <p className="min-w-0 flex-1 truncate text-slate-600">{slice.name}</p>
             <p className="shrink-0 font-medium text-slate-800">
-              {Math.floor(slice.minutes / 60)}h {slice.minutes % 60}m
+              {Math.floor(slice.study_seconds / 3600)}h {Math.floor((slice.study_seconds % 3600) / 60)}m
             </p>
           </div>
         ))}

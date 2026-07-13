@@ -67,7 +67,7 @@ export const AuthService = {
   },
 
   getMe: async (): Promise<User> => {
-    const response = await api.get<UserResponse>(`${route}/me`);
+    const response = await api.get<UserResponse>('/users/me');
     return unwrapData(response.data);
   },
 };

@@ -1,5 +1,8 @@
+'use client';
+
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Home,
   LayoutDashboard,
@@ -14,16 +17,15 @@ import Image from 'next/image';
 
 import { CreateNotebookDialog } from '@/components/CreateNotebookDialog';
 import { LogoutButton } from '@/components/LogoutButton';
+import { useAuth } from '@/features/auth/AuthProvider';
+import { NotebookService } from '@/services/Notebook';
+import { UserService } from '@/services/User';
+import { ApiClientError } from '@/services/api';
 
 type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
-};
-
-type RecentItem = {
-  label: string;
-  href: string; 
 };
 
 const navItems: NavItem[] = [
@@ -33,17 +35,6 @@ const navItems: NavItem[] = [
   { label: 'Salas de estudio', href: '/salas-de-estudio', icon: Users },
 ];
 
-const cuadernosRecientes: RecentItem[] = [
-  { label: 'Git y github. La tec...', href: '/dashboard/cuadernos/1' },
-  { label: 'Git y github. La tec...', href: '/dashboard/cuadernos/2' },
-];
-
-const recursosRecientes: RecentItem[] = [
-  { label: 'Git y github. La tec...', href: '/biblioteca/recursos/1' },
-  { label: 'Git y github. La tec...', href: '/biblioteca/recursos/2' },
-];
-
-
 export function AppShell({
   children,
   activeHref = '/home',
@@ -51,6 +42,36 @@ export function AppShell({
   children: ReactNode;
   activeHref?: string;
 }) {
+  const { status, user } = useAuth();
+  const profilePhotoQuery = useQuery({
+    queryKey: ['profile-photo'],
+    queryFn: async () => {
+      try {
+        return await UserService.getProfilePhoto();
+      } catch (error) {
+        if (error instanceof ApiClientError && error.status === 404) return null;
+        throw error;
+      }
+    },
+    enabled: status === 'authenticated',
+    staleTime: 0,
+    refetchInterval: (query) => {
+      const expiresIn = query.state.data?.expires_in;
+      return expiresIn
+        ? Math.max(30_000, Math.floor(expiresIn * 900))
+        : false;
+    },
+  });
+  const recentNotebooksQuery = useQuery({
+    queryKey: ['notebooks', 'recent'],
+    queryFn: () => NotebookService.list({ limit: 3, offset: 0 }),
+    enabled: status === 'authenticated',
+  });
+  const recentNotebooks = (recentNotebooksQuery.data?.data ?? []).filter(
+    (notebook) => notebook.notebook_id,
+  );
+  const initials = `${user?.name?.[0] ?? ''}${user?.last_name?.[0] ?? ''}`.toUpperCase() || 'U';
+
   return (
     <div className="min-h-screen overflow-y-auto">
       <div className="mx-auto grid h-[calc(100vh-0rem)] max-w-[1600px] overflow-hidden border border-[color:var(--app-border)] bg-[color:var(--app-surface)] shadow-[0_20px_80px_rgba(67,56,202,0.10)] backdrop-blur-xl lg:grid-cols-[280px_minmax(0,1fr)]">
@@ -99,33 +120,18 @@ export function AppShell({
                 Cuadernos Recientes
               </p>
               <div className="mt-3 space-y-1">
-                {cuadernosRecientes.map((item, i) => (
+                {recentNotebooks.length === 0 ? (
+                  <p className="px-3 py-2 text-xs text-slate-400">
+                    {recentNotebooksQuery.isPending ? 'Cargando…' : 'Sin cuadernos recientes'}
+                  </p>
+                ) : recentNotebooks.map((notebook) => (
                   <Link
-                    key={i}
-                    href={item.href}
+                    key={notebook.notebook_id}
+                    href={`/biblioteca/notebook/${notebook.notebook_id}`}
                     className="flex items-center gap-3 truncate rounded-xl px-3 py-2 text-sm text-slate-600 transition hover:bg-white/70 hover:text-slate-900"
                   >
                     <BookOpen className="h-4 w-4 shrink-0 text-slate-400" strokeWidth={2} />
-                    <span className="truncate">{item.label}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            {/* --- Recursos de estudio recientes --- */}
-            <div className="mt-6">
-              <p className="px-3 text-xs font-semibold uppercase tracking-widest text-slate-400">
-                Recursos recientes
-              </p>
-              <div className="mt-3 space-y-1">
-                {recursosRecientes.map((item, i) => (
-                  <Link
-                    key={i}
-                    href={item.href}
-                    className="flex items-center gap-3 truncate rounded-xl px-3 py-2 text-sm text-slate-600 transition hover:bg-white/70 hover:text-slate-900"
-                  >
-                    <BookOpen className="h-4 w-4 shrink-0 text-slate-400" strokeWidth={2} />
-                    <span className="truncate">{item.label}</span>
+                    <span className="truncate">{notebook.name || 'Cuaderno sin nombre'}</span>
                   </Link>
                 ))}
               </div>
@@ -160,8 +166,25 @@ export function AppShell({
             </button>
 
             {/* Perfil */}
-            <button className="flex items-center gap-2 transition hover:ring-[color:var(--app-primary)]">
-              <div className="h-10 w-10 rounded-full bg-[linear-gradient(135deg,var(--app-primary),var(--app-secondary))]" />
+            <button
+              type="button"
+              aria-label={`Perfil de ${user?.name || 'usuario'}`}
+              className="flex items-center gap-2 transition hover:ring-[color:var(--app-primary)]"
+            >
+              {profilePhotoQuery.data?.url ? (
+                <Image
+                  src={profilePhotoQuery.data.url}
+                  alt="Foto de perfil"
+                  width={40}
+                  height={40}
+                  unoptimized
+                  className="h-10 w-10 rounded-full object-cover ring-2 ring-white"
+                />
+              ) : (
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-[linear-gradient(135deg,var(--app-primary),var(--app-secondary))] text-xs font-bold text-white">
+                  {initials}
+                </span>
+              )}
             </button>
 
             {/* Crear cuaderno */}

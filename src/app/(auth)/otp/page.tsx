@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/Button"
 import { useMutation } from "@tanstack/react-query"
 import { AuthService } from "@/services/Auth"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
     clearPendingOtpSession,
     getPendingAuthChallenge,
@@ -15,12 +15,15 @@ import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from "@/comp
 import { useCountdown } from "@/hooks/use-countdown"
 import { ApiClientError } from "@/services/api"
 import { establishSession } from "@/features/auth/session"
+import type { OtpVerificationType } from "@/services/contracts"
 
 const slotClassName = "h-11 w-8 rounded-lg border-zinc-700/80 bg-zinc-900 text-lg font-semibold text-zinc-100 shadow-sm transition-all duration-200 focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 aria-invalid:border-rose-500/80 aria-invalid:bg-rose-950/20 aria-invalid:text-rose-200 sm:h-14 sm:w-12 sm:rounded-xl sm:text-xl"
 
 export default function InputOTPInvalid() {
     const [value, setValue] = useState("")
     const [challenge, setChallenge] = useState<PendingAuthChallenge | null>(null)
+    const [hashError, setHashError] = useState<string | null>(null)
+    const hashVerificationStarted = useRef(false)
     const router = useRouter()
     const {
         isActive: isResendCooldownActive,
@@ -34,6 +37,44 @@ export default function InputOTPInvalid() {
     } = useCountdown()
 
     useEffect(() => {
+        const searchParams = new URLSearchParams(window.location.search)
+        const tokenHash = searchParams.get('token_hash')
+
+        if (tokenHash && !hashVerificationStarted.current) {
+            hashVerificationStarted.current = true
+            const requestedType = searchParams.get('type')
+            if (requestedType === 'recovery') {
+                setHashError('Este enlace de recuperación no puede iniciar una sesión normal. Solicita un código nuevo para cambiar tu contraseña.')
+                return
+            }
+            const allowedTypes: OtpVerificationType[] = [
+                'email',
+                'invite',
+                'email_change',
+            ]
+            const type = allowedTypes.includes(requestedType as OtpVerificationType)
+                ? requestedType as OtpVerificationType
+                : 'email'
+
+            void AuthService.verifyOtp({ token_hash: tokenHash, type })
+                .then(establishSession)
+                .then(() => {
+                    clearPendingOtpSession()
+                    router.replace('/home')
+                })
+                .catch((error: unknown) => {
+                    setHashError(
+                        error instanceof Error
+                            ? error.message
+                            : 'El enlace de verificación no es válido o ya fue utilizado.',
+                    )
+                    if (error instanceof ApiClientError && error.retryAfterSeconds) {
+                        startVerifyCooldown(error.retryAfterSeconds)
+                    }
+                })
+            return
+        }
+
         const pendingChallenge = getPendingAuthChallenge()
         if (!pendingChallenge) {
             router.replace('/login')
@@ -50,7 +91,7 @@ export default function InputOTPInvalid() {
 
         setChallenge(pendingChallenge)
         startResendCooldown(60)
-    }, [router, startResendCooldown])
+    }, [router, startResendCooldown, startVerifyCooldown])
 
     const {
         mutate: resendOtp,
@@ -119,6 +160,23 @@ export default function InputOTPInvalid() {
             token: value,
             type: challenge.type,
         })
+    }
+
+    if (!challenge && hashError) {
+        return (
+            <div className="grid min-h-screen place-items-center p-6">
+                <div className="max-w-md rounded-2xl border border-rose-200 bg-white p-6 text-center shadow-xl">
+                    <p className="text-sm text-rose-600" role="alert">{hashError}</p>
+                    <button
+                        type="button"
+                        onClick={() => router.replace('/login')}
+                        className="mt-5 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white"
+                    >
+                        Volver a iniciar sesión
+                    </button>
+                </div>
+            </div>
+        )
     }
 
     if (!challenge) {

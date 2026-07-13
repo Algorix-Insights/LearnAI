@@ -31,13 +31,19 @@ const conversationPath = (conversationId: UUID) =>
 
 export const RagService = {
   listDocuments: async (
+    notebookId: UUID,
     pagination: PaginationParams = {},
   ): Promise<DocumentListResponse> => {
     const response = await api.get<DocumentListResponse>('/documents', {
       params: pagination,
     });
 
-    return response.data;
+    return {
+      ...response.data,
+      data: response.data.data.filter(
+        (document) => document.notebook_id === notebookId,
+      ),
+    };
   },
 
   getDocument: async (documentId: UUID): Promise<Document> => {

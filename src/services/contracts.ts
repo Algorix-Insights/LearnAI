@@ -106,12 +106,26 @@ export type OtpPayload = AuthOtpPayload;
 
 export type OtpVerificationType = "email" | "recovery" | "invite" | "email_change";
 
-export interface AuthVerifyOtpPayload {
-  email: string;
-  token: string;
-  type?: OtpVerificationType;
+interface AuthVerifyOtpBasePayload {
+  type: OtpVerificationType;
   captcha_token?: string;
 }
+
+export interface AuthVerifyOtpCodePayload extends AuthVerifyOtpBasePayload {
+  email: string;
+  token: string;
+  token_hash?: never;
+}
+
+export interface AuthVerifyOtpHashPayload extends AuthVerifyOtpBasePayload {
+  token_hash: string;
+  email?: never;
+  token?: never;
+}
+
+export type AuthVerifyOtpPayload =
+  | AuthVerifyOtpCodePayload
+  | AuthVerifyOtpHashPayload;
 
 export type VerifyOtpPayload = AuthVerifyOtpPayload;
 
@@ -313,7 +327,6 @@ export type ConversationStatus = "active" | "archived" | "deleted";
 export interface Conversation {
   conversation_id: UUID | null;
   notebook_id: UUID | null;
-  created_by_user_id: UUID | null;
   name: string | null;
   summary: string | null;
   spent_time: number | null;
@@ -335,7 +348,6 @@ export type MessageRole = "user" | "assistant" | "system";
 export interface Message {
   message_id: UUID | null;
   conversation_id: UUID | null;
-  sent_by_user_id: UUID | null;
   role: MessageRole | null;
   content: string | null;
   order_message: number | null;
@@ -607,7 +619,7 @@ export type UserStatisticsResponse = ApiEnvelope<UserStatistics>;
 export interface StudySessionLearningEventPayload {
   notebook_id: UUID;
   activity_type: "study_session";
-  quantity?: 1;
+  quantity: 1;
   duration_seconds: number;
 }
 
@@ -615,7 +627,7 @@ export interface FlashcardReviewLearningEventPayload {
   notebook_id: UUID;
   activity_type: "flashcard_reviewed";
   quantity: number;
-  duration_seconds?: number;
+  duration_seconds: number;
 }
 
 export type CreateLearningEventPayload =
