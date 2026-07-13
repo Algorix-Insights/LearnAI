@@ -11,6 +11,10 @@ import { useRouter } from 'next/navigation';
 import { getAuthToken, storePendingOtpEmail } from '@/lib/auth-client';
 import { useEffect } from 'react';
 
+import { useState } from 'react'; // agrega este import
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+
+
 export default function RegisterPage() {
     const router = useRouter();
 
@@ -38,6 +42,8 @@ export default function RegisterPage() {
         }
     });
 
+    const [showVerifyModal, setShowVerifyModal] = useState(false);
+
     const {
         mutate: registerUser,
         isPending: isRegistering,
@@ -46,6 +52,7 @@ export default function RegisterPage() {
     } = useMutation({
         mutationFn: AuthService.register,
         onSuccess: (_data, variables) => {
+            setShowVerifyModal(true); 
             const userEmail = variables.email;
             storePendingOtpEmail(userEmail);
 
@@ -61,6 +68,8 @@ export default function RegisterPage() {
             password: data.password
         });
     };
+
+    
 
     return (
         <section className="grid w-full min-h-screen overflow-hidden shadow-[0_24px_80px_rgba(88,75,255,0.22)] ring-1 ring-white/70 backdrop-blur-xl lg:grid-cols-[1.08fr_0.92fr]">
@@ -176,6 +185,20 @@ export default function RegisterPage() {
                     </p>
                 </div>
             </div>
+
+            <Dialog open={showVerifyModal} onOpenChange={setShowVerifyModal}>
+  <DialogContent className="bg-white p-6 gap-5 sm:max-w-md">
+    <DialogHeader className="gap-5">
+      <DialogTitle className="text-[color:var(--app-primary)] text-xl font-semibold">Verifica tu correo</DialogTitle>
+      <DialogDescription className="text-sm">
+        Te enviamos un correo de verificación. Revisa tu bandeja de entrada
+        (o spam) y confirma tu cuenta antes de iniciar sesión.
+      </DialogDescription>
+    </DialogHeader>
+    <p onClick={() => router.push('/login')} className='text-sm font-light text-indigo-500 transition hover:text-indigo-600'>Iniciar Sesión</p>
+  </DialogContent>
+</Dialog>
+
         </section>
     );
 }

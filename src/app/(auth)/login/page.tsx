@@ -11,6 +11,9 @@ import { SignInFormData, signInSchema } from '@/features/auth/signIn';
 import { getAuthToken, storePendingOtpEmail } from '@/lib/auth-client';
 import { useEffect } from 'react';
 
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+
 export default function LoginPage() {
 	const router = useRouter();
 
@@ -28,13 +31,15 @@ export default function LoginPage() {
 		resolver: zodResolver(signInSchema),
 	});
 
+	const [showOtpNotice, setShowOtpNotice] = useState(false);
+
 	const {
 		mutate: sendOtp,
 		isPending: isSendingOtp,
 	} = useMutation({
 		mutationFn: AuthService.sendOtp,
 		onSuccess: () => {
-			router.push('/otp');
+			setShowOtpNotice(true);
 		}
 	});
 
@@ -61,6 +66,7 @@ export default function LoginPage() {
 	};
 
 	return (
+		<>
 		<section className="grid w-full min-h-screen overflow-hidden shadow-[0_24px_80px_rgba(88,75,255,0.22)] ring-1 ring-white/70 backdrop-blur-xl lg:grid-cols-[1.08fr_0.92fr]">
 
 			{/* Left Content */}
@@ -147,5 +153,22 @@ export default function LoginPage() {
 				</div>
 			</div>
 		</section>
+
+		<Dialog open={showOtpNotice} onOpenChange={setShowOtpNotice}>
+            <DialogContent className="bg-white p-8 gap-5 sm:max-w-md">
+                <DialogHeader className="gap-5">
+                    <DialogTitle className="text-[color:var(--app-primary)] text-xl font-semibold">Código enviado</DialogTitle>
+                    <DialogDescription className="text-sm">
+                        Te enviamos un código de verificación a tu correo.
+						Revisa tu bandeja de entrada o spam.
+                    </DialogDescription>
+                </DialogHeader>
+                <Button variant="primary" className="w-full mt-2" onClick={() => router.push('/otp')}>
+                    Continuar
+                </Button>
+            </DialogContent>
+        </Dialog>
+
+		</>
 	);
 }

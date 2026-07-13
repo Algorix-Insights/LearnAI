@@ -8,6 +8,7 @@ import NewNoteBook from "@/assets/newNoteBook.svg"
 import FlameStreak from "@/assets/flameStreak.svg"
 import StreakCard from "@/features/Dashboard/Components/Streak";
 import { requireAuth } from '@/lib/require-auth';
+import { CreateNotebookDialog } from "@/components/CreateNotebookDialog";
 
 
 type User = {
@@ -243,13 +244,11 @@ export default async function HomePage() {
                   a aprender.
                 </p>
 
-                <Link
-                  href="/"
-                  className="inline-flex  h-11 shrink-0 items-center justify-center gap-1 rounded-full bg-[color:var(--app-primary)] px-5 text-sm font-semibold text-white shadow-[0_16px_30px_rgba(116,82,245,0.24)] transition hover:translate-y-[-1px]"
-                >
-                  Crear cuaderno
-                  <Plus className="h-4 w-4" strokeWidth={2.5} />
-                </Link>
+                 <CreateNotebookDialog
+                              triggerLabel="Crear cuaderno"
+                              triggerClassName="bg-[linear-gradient(135deg,var(--app-primary),var(--app-secondary))] px-5 text-white"
+                              triggerIcon
+                            />
               </div>
 
               <div className="flex w-32 shrink-0 justify-center">
