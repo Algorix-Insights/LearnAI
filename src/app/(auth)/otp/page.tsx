@@ -219,7 +219,7 @@ export default function InputOTPInvalid() {
                 )}
 
                 <InputOTP
-                    maxLength={6}
+                    maxLength={9}
                     value={value}
                     onChange={(nextValue) => {
                         setValue(nextValue)
@@ -231,22 +231,17 @@ export default function InputOTPInvalid() {
                     <InputOTPGroup className="gap-1 sm:gap-2.5">
                         <InputOTPSlot index={0} aria-invalid={isVerifyOtpError} className={slotClassName} />
                         <InputOTPSlot index={1} aria-invalid={isVerifyOtpError} className={slotClassName} />
-                    </InputOTPGroup>
-
-                    <InputOTPSeparator className="mx-0 hidden font-light text-zinc-600 sm:flex" />
-
-                    <InputOTPGroup className="gap-1 sm:gap-2.5">
                         <InputOTPSlot index={2} aria-invalid={isVerifyOtpError} className={slotClassName} />
                         <InputOTPSlot index={3} aria-invalid={isVerifyOtpError} className={slotClassName} />
+
                     </InputOTPGroup>
-
                     <InputOTPSeparator className="mx-0 hidden font-light text-zinc-600 sm:flex" />
-
                     <InputOTPGroup className="gap-1 sm:gap-2.5">
                         <InputOTPSlot index={4} aria-invalid={isVerifyOtpError} className={slotClassName} />
                         <InputOTPSlot index={5} aria-invalid={isVerifyOtpError} className={slotClassName} />
+                        <InputOTPSlot index={6} aria-invalid={isVerifyOtpError} className={slotClassName} />
+                        <InputOTPSlot index={7} aria-invalid={isVerifyOtpError} className={slotClassName} />
                     </InputOTPGroup>
-
                 </InputOTP>
 
                 <Button
