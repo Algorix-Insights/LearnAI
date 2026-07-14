@@ -148,7 +148,7 @@ export default function InputOTPInvalid() {
         e.preventDefault()
         if (
             !challenge ||
-            value.length !== 6 ||
+            value.length !== 8 ||
             isVerifyingOtp ||
             isResendingOtp ||
             isVerifyCooldownActive
