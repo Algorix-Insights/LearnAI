@@ -7,9 +7,18 @@ import { Button } from '@/components/Button';
 type NotebookHeaderProps = {
     title: string;
     onTitleChange?: (newTitle: string) => void;
+    onToggleSidebar?: () => void;
+    isSidebarOpen?: boolean;
+    sidebarButtonRef?: React.Ref<HTMLButtonElement>;
 };
 
-export default function NotebookHeader({ title: initialTitle, onTitleChange }: NotebookHeaderProps) {
+export default function NotebookHeader({
+    title: initialTitle,
+    onTitleChange,
+    onToggleSidebar,
+    isSidebarOpen = false,
+    sidebarButtonRef,
+}: NotebookHeaderProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [title, setTitle] = useState(initialTitle);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -46,7 +55,17 @@ export default function NotebookHeader({ title: initialTitle, onTitleChange }: N
     return (
         <header className="flex h-16 items-center justify-between gap-4 border-b border-[rgba(116,82,245,0.12)] bg-white px-4 sm:px-6">
             <div className="flex min-w-0 items-center gap-3">
-                <Button variant="pageIcon" size="icon" type="button">
+                <Button
+                    ref={sidebarButtonRef}
+                    variant="pageIcon"
+                    size="icon"
+                    type="button"
+                    className="lg:hidden"
+                    onClick={onToggleSidebar}
+                    aria-label={isSidebarOpen ? 'Cerrar panel de recursos' : 'Abrir panel de recursos'}
+                    aria-controls="notebook-resource-panel"
+                    aria-expanded={isSidebarOpen}
+                >
                     <PanelLeftClose className="size-6" />
                 </Button>
 
@@ -63,6 +82,12 @@ export default function NotebookHeader({ title: initialTitle, onTitleChange }: N
                 ) : (
                     <div
                         onClick={() => setIsEditing(true)}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                setIsEditing(true);
+                            }
+                        }}
                         role="button"
                         tabIndex={0}
                         title="Haz clic para editar el título"

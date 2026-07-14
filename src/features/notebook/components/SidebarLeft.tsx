@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type UIEvent } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useCountdown } from '@/hooks/use-countdown';
 import { RagService } from '@/services/Rag';
@@ -18,9 +18,11 @@ import SummaryCard from './SummaryCard';
 type SidebarLeftProps = {
   notebookId: string;
   notebook?: Notebook;
+  onClose?: () => void;
+  closeButtonRef?: React.Ref<HTMLButtonElement>;
 };
 
-export default function SidebarLeft({ notebookId, notebook }: SidebarLeftProps) {
+export default function SidebarLeft({ notebookId, notebook, onClose, closeButtonRef }: SidebarLeftProps) {
   const queryClient = useQueryClient();
   const [showTopMask, setShowTopMask] = useState(false);
   const [showBottomMask, setShowBottomMask] = useState(false);
@@ -30,14 +32,22 @@ export default function SidebarLeft({ notebookId, notebook }: SidebarLeftProps) 
     queryKey: ['notebooks', notebookId, 'documents'],
     queryFn: () => RagService.listDocuments(notebookId, { limit: 100, offset: 0 }),
   });
-  const flashcardsQuery = useQuery({
+  const flashcardsQuery = useInfiniteQuery({
     queryKey: ['notebooks', notebookId, 'flashcards'],
-    queryFn: () => RagService.listFlashcards(notebookId, { limit: 100, offset: 0 }),
+    queryFn: ({ pageParam }) => RagService.listFlashcards(notebookId, { limit: 100, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.data.length < lastPage.limit
+      ? undefined
+      : lastPage.offset + lastPage.limit,
   });
+  const flashcards = flashcardsQuery.data?.pages.flatMap((page) => page.data) ?? [];
   const uploadDocument = useMutation({
     mutationFn: (file: File) => RagService.uploadDocument(notebookId, { file }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['notebooks', notebookId, 'documents'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['notebooks', notebookId, 'documents'] }),
+        queryClient.invalidateQueries({ queryKey: ['statistics'] }),
+      ]);
     },
     onError: (error) => {
       if (error instanceof ApiClientError && error.retryAfterSeconds) {
@@ -54,7 +64,10 @@ export default function SidebarLeft({ notebookId, notebook }: SidebarLeftProps) 
   const generateFlashcards = useMutation({
     mutationFn: () => RagService.generateFlashcards(notebookId, { count: 10 }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['notebooks', notebookId, 'flashcards'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['notebooks', notebookId, 'flashcards'] }),
+        queryClient.invalidateQueries({ queryKey: ['statistics'] }),
+      ]);
     },
     onError: (error) => {
       if (error instanceof ApiClientError && error.retryAfterSeconds) {
@@ -72,10 +85,13 @@ export default function SidebarLeft({ notebookId, notebook }: SidebarLeftProps) 
   const bottomGradient = showBottomMask ? 'rgba(0,0,0,1) 96%, rgba(0,0,0,0) 100%' : 'rgba(0,0,0,1) 100%';
   const sourceError = uploadDocument.error ?? deleteDocument.error ?? documentsQuery.error;
   const resourceError = generateFlashcards.error ?? flashcardsQuery.error;
+  const hasProcessedSources = (documentsQuery.data?.data ?? []).some(
+    (document) => document.processing_status === 'completed',
+  );
 
   return (
     <aside className="relative flex h-full min-h-0 flex-col border-r border-[rgba(116,82,245,0.12)] bg-white/72 backdrop-blur-xl">
-      <SidebarHeader />
+      <SidebarHeader onClose={onClose} closeButtonRef={closeButtonRef} />
       <div
         onScroll={handleScroll}
         className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-4 transition-all duration-300 hover-scroll"
@@ -97,12 +113,20 @@ export default function SidebarLeft({ notebookId, notebook }: SidebarLeftProps) 
           onDelete={(documentId) => deleteDocument.mutate(documentId)}
         />
         <ResourcesSection
-          resources={flashcardsQuery.data?.data ?? []}
+          notebookId={notebookId}
+          resources={flashcards}
+          canGenerate={hasProcessedSources}
+          isSourceLoading={documentsQuery.isPending}
           isLoading={flashcardsQuery.isPending}
+          isListError={flashcardsQuery.isError}
+          hasMore={flashcardsQuery.hasNextPage}
+          isLoadingMore={flashcardsQuery.isFetchingNextPage}
           isGenerating={generateFlashcards.isPending || flashcardCooldown.isActive}
           retryAfterSeconds={flashcardCooldown.remainingSeconds}
           error={resourceError instanceof Error ? resourceError.message : null}
           onGenerate={() => generateFlashcards.mutate()}
+          onRetry={() => void flashcardsQuery.refetch()}
+          onLoadMore={() => flashcardsQuery.fetchNextPage()}
         />
       </div>
     </aside>

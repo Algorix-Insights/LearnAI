@@ -1,18 +1,34 @@
-import { ChevronDown, ChevronLeft } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronLeft, X } from 'lucide-react';
 
 import { Button } from '@/components/Button';
 
-export default function SidebarHeader() {
+type SidebarHeaderProps = {
+    onClose?: () => void;
+    closeButtonRef?: React.Ref<HTMLButtonElement>;
+};
+
+export default function SidebarHeader({ onClose, closeButtonRef }: SidebarHeaderProps) {
     return (
         <div className="flex h-16 items-center justify-between border-b border-[rgba(116,82,245,0.12)] px-4">
-            <Button variant="sidebarText" size="auto" className="gap-2 px-0 py-0" type="button">
+            <Link
+                href="/biblioteca"
+                className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7452F5]/30"
+            >
                 <ChevronLeft className="size-4 text-[color:var(--app-primary)]" />
                 <span>Biblioteca</span>
-            </Button>
+            </Link>
 
-            <Button variant="sidebarText" size="auto" className="gap-1 px-0 py-0" type="button">
-                <span>Recientes</span>
-                <ChevronDown className="size-4" />
+            <Button
+                ref={closeButtonRef}
+                variant="pageIcon"
+                size="icon"
+                type="button"
+                className="lg:hidden"
+                onClick={onClose}
+                aria-label="Cerrar panel de recursos"
+            >
+                <X className="size-4" />
             </Button>
         </div>
     );

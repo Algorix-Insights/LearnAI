@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
@@ -16,8 +17,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { TagInput } from '@/features/biblioteca/components/TagInput';
+import { Skeleton } from '@/components/ui/skeleton';
 import { NotebookService } from '@/services/Notebook';
+import type { NotebookListResponse } from '@/services/contracts';
 
 import { InputDate } from './InputDate';
 import { InputText } from './InputText';
@@ -27,6 +29,21 @@ type CreateNotebookDialogProps = {
   triggerClassName?: string;
   triggerIcon?: boolean;
 };
+
+function TagInputLoading() {
+  return (
+    <div aria-busy="true" aria-live="polite" className="space-y-2" role="status">
+      <span className="sr-only">Cargando selector de etiquetas</span>
+      <Skeleton className="h-4 w-40" />
+      <Skeleton className="h-12 w-full rounded-[18px]" />
+    </div>
+  );
+}
+
+const TagInput = dynamic(
+  () => import('@/features/biblioteca/components/TagInput').then((module) => module.TagInput),
+  { loading: TagInputLoading, ssr: false },
+);
 
 function getTodayInputValue() {
   const today = new Date();
@@ -88,13 +105,24 @@ export function CreateNotebookDialog({
         }
       }
 
-      return warning;
+      return { notebook, warning };
     },
-    onSuccess: async (warning) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['notebooks'] }),
-        queryClient.invalidateQueries({ queryKey: ['statistics'] }),
-      ]);
+    onSuccess: ({ notebook, warning }) => {
+      queryClient.setQueryData<NotebookListResponse>(['notebooks'], (current) => ({
+        data: [
+          notebook,
+          ...(current?.data.filter(
+            (item) => item.notebook_id !== notebook.notebook_id,
+          ) ?? []),
+        ],
+        limit: current?.limit ?? 500,
+        offset: current?.offset ?? 0,
+      }));
+      void queryClient.invalidateQueries({
+        queryKey: ['notebooks'],
+        refetchType: 'active',
+      });
+      void queryClient.invalidateQueries({ queryKey: ['statistics'] });
       setTagWarning(warning);
       setOpen(false);
       resetForm();

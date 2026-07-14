@@ -15,6 +15,8 @@ export const API_BASE_URL = configuredApiUrl.endsWith('/api/v1')
 
 export const API_UPLOAD_TIMEOUT_MS = 120_000;
 export const API_AI_TIMEOUT_MS = 180_000;
+const DEFAULT_RATE_LIMIT_RETRY_SECONDS = 60;
+const DEFAULT_AI_RATE_LIMIT_RETRY_SECONDS = 3_600;
 
 export type ApiValidationError = {
   field: string;
@@ -125,9 +127,21 @@ export function toApiClientError(error: unknown): ApiClientError {
   const axiosError = error as AxiosError<ApiErrorPayload>;
   const status = axiosError.response?.status ?? null;
   const payload = axiosError.response?.data;
-  const retryAfterSeconds = parseRetryAfter(
+  const parsedRetryAfterSeconds = parseRetryAfter(
     axiosError.response?.headers?.['retry-after'],
   );
+  const isAiRateLimit =
+    status === 429 &&
+    /(?:operaciones|recursos) de ia/i.test(payload?.detail ?? '');
+  // Some CORS deployments omit Retry-After from exposed response headers.
+  // Keep the UI from entering an immediate retry loop even in that case.
+  const retryAfterSeconds =
+    parsedRetryAfterSeconds ??
+    (status === 429
+      ? isAiRateLimit
+        ? DEFAULT_AI_RATE_LIMIT_RETRY_SECONDS
+        : DEFAULT_RATE_LIMIT_RETRY_SECONDS
+      : null);
 
   let message = payload?.detail;
   if (!message && axiosError.code === 'ECONNABORTED') {

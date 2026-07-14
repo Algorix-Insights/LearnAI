@@ -1,14 +1,17 @@
 'use client';
 
+import { useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { Copy, FileText } from 'lucide-react';
+import { Copy, FileText, RefreshCw } from 'lucide-react';
 
 import BannerHome from '@/assets/BannerHome.svg';
 import NewNoteBook from '@/assets/newNoteBook.svg';
 import Quote from '@/assets/quote.svg';
+import { ContentLoadingSkeleton } from '@/components/ContentLoadingSkeleton';
 import { CreateNotebookDialog } from '@/components/CreateNotebookDialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import StreakCard from '@/features/Dashboard/Components/Streak';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { AppShell } from '@/layouts/app-shell';
@@ -19,25 +22,37 @@ const quoteOfTheDay = {
   author: 'Robert Collier',
 };
 
+const STATISTICS_STALE_TIME = 60_000;
+
 export default function HomePage() {
   const { user } = useAuth();
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const timezone = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    [],
+  );
   const statisticsQuery = useQuery({
     queryKey: ['statistics', 'week', timezone],
     queryFn: () => StatisticsService.getStatistics({ period: 'week', timezone }),
+    staleTime: STATISTICS_STALE_TIME,
   });
   const statistics = statisticsQuery.data;
-  const today = new Intl.DateTimeFormat('es-MX', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date());
-  const greeting = new Date().getHours() < 12
-    ? 'Buenos días'
-    : new Date().getHours() < 19
-      ? 'Buenas tardes'
-      : 'Buenas noches';
+  const { greeting, today } = useMemo(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    return {
+      today: new Intl.DateTimeFormat('es-MX', {
+        weekday: 'long',
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      }).format(now),
+      greeting: hour < 12
+        ? 'Buenos días'
+        : hour < 19
+          ? 'Buenas tardes'
+          : 'Buenas noches',
+    };
+  }, []);
 
   return (
     <AppShell>
@@ -78,10 +93,28 @@ export default function HomePage() {
         </div>
 
         {statisticsQuery.isError ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700" role="alert">
-            {statisticsQuery.error instanceof Error
-              ? statisticsQuery.error.message
-              : 'No fue posible cargar tu actividad.'}
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700"
+            role="alert"
+          >
+            <div>
+              <p className="font-semibold">No pudimos cargar tu actividad.</p>
+              <p className="mt-0.5 text-xs text-rose-600">
+                Tus estadísticas no están disponibles por el momento.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-wait disabled:opacity-60"
+              disabled={statisticsQuery.isFetching}
+              onClick={() => void statisticsQuery.refetch()}
+            >
+              <RefreshCw
+                className={`size-3.5 ${statisticsQuery.isFetching ? 'animate-spin' : ''}`}
+                aria-hidden="true"
+              />
+              {statisticsQuery.isFetching ? 'Reintentando…' : 'Reintentar'}
+            </button>
           </div>
         ) : null}
 
@@ -89,7 +122,15 @@ export default function HomePage() {
           <section className="flex min-h-80 flex-col rounded-2xl border border-[color:var(--app-border)] bg-white p-5">
             <p className="pb-4 text-base font-semibold">Próximas fechas límite</p>
             {statisticsQuery.isPending ? (
-              <p className="text-sm text-slate-400" role="status">Cargando cuadernos…</p>
+              <ContentLoadingSkeleton
+                count={3}
+                label="Cargando próximos vencimientos"
+                variant="notebook"
+              />
+            ) : statisticsQuery.isError && !statistics ? (
+              <div className="grid flex-1 place-items-center px-5 text-center text-sm text-slate-500">
+                Las próximas fechas no están disponibles. Usa “Reintentar” para volver a cargarlas.
+              </div>
             ) : statistics?.upcoming.length ? (
               <div className="space-y-3">
                 {statistics.upcoming.map((book) => {
@@ -152,7 +193,24 @@ export default function HomePage() {
             </section>
 
             <section className="flex min-h-52 items-center justify-between gap-4 rounded-2xl border border-[color:var(--app-border)] bg-white px-8 py-5">
-              <StreakCard streak={statistics?.streak} />
+              {statisticsQuery.isPending ? (
+                <div
+                  aria-busy="true"
+                  aria-live="polite"
+                  className="w-full space-y-4"
+                  role="status"
+                >
+                  <span className="sr-only">Cargando racha de estudio</span>
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-20 w-full" />
+                </div>
+              ) : statisticsQuery.isError && !statistics ? (
+                <div className="w-full text-center text-sm text-slate-500">
+                  Tu racha no está disponible. Usa “Reintentar” para volver a cargarla.
+                </div>
+              ) : (
+                <StreakCard streak={statistics?.streak} />
+              )}
             </section>
           </div>
         </div>

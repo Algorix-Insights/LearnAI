@@ -13,13 +13,8 @@ import { establishSession } from '@/features/auth/session';
 import { SignInFormData, signInSchema } from '@/features/auth/signIn';
 import { useCountdown } from '@/hooks/use-countdown';
 import { getSafeProtectedRoute } from '@/lib/auth';
-import { storePendingOtpEmail } from '@/lib/auth-client';
 import { AuthService } from '@/services/Auth';
 import { ApiClientError } from '@/services/api';
-
-type LoginResult =
-  | { flow: 'authenticated' }
-  | { flow: 'otp'; email: string };
 
 function getErrorMessage(error: unknown) {
   if (error instanceof ApiClientError || error instanceof Error) {
@@ -41,20 +36,14 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
-    watch,
-    setValue,
-    clearErrors,
     formState: { errors },
   } = useForm<SignInFormData>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
-      mode: 'password',
       email: '',
       password: '',
     },
   });
-
-  const mode = watch('mode');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -69,34 +58,19 @@ export default function LoginPage() {
     isError,
     error,
     reset: resetAuthentication,
-  } = useMutation<LoginResult, unknown, SignInFormData>({
+  } = useMutation<void, unknown, SignInFormData>({
     mutationFn: async (data) => {
-      if (data.mode === 'otp') {
-        await AuthService.sendOtp({
-          email: data.email,
-          should_create_user: false,
-        });
-        return { flow: 'otp', email: data.email };
-      }
-
       const session = await AuthService.login({
         email: data.email,
-        password: data.password ?? '',
+        password: data.password,
       });
       if (!Boolean(session.access_token)) {
         throw new Error('La API no devolvió una sesión válida.');
       }
 
       await establishSession(session);
-      return { flow: 'authenticated' };
     },
-    onSuccess: (result) => {
-      if (result.flow === 'otp') {
-        storePendingOtpEmail(result.email, 'login', 'email');
-        router.push('/otp');
-        return;
-      }
-
+    onSuccess: () => {
       const requestedRoute = new URLSearchParams(window.location.search).get('next');
       router.replace(getSafeProtectedRoute(requestedRoute));
     },
@@ -110,10 +84,15 @@ export default function LoginPage() {
     },
   });
 
-  const changeMode = (nextMode: SignInFormData['mode']) => {
-    setValue('mode', nextMode, { shouldValidate: false });
-    clearErrors();
-    resetAuthentication();
+  const isSubmitDisabled = isPending || isCooldownActive;
+
+  const clearRequestError = () => {
+    if (isError) resetAuthentication();
+  };
+
+  const onSubmit = (data: SignInFormData) => {
+    if (isSubmitDisabled) return;
+    authenticate(data);
   };
 
   return (
@@ -150,44 +129,17 @@ export default function LoginPage() {
             Iniciar Sesión
           </h2>
 
-          <div
-            className="mt-6 grid grid-cols-2 rounded-xl bg-slate-100 p-1"
-            role="group"
-            aria-label="Método de inicio de sesión"
-          >
-            <button
-              type="button"
-              disabled={isPending || isCooldownActive}
-              aria-pressed={mode === 'password'}
-              onClick={() => changeMode('password')}
-              className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                mode === 'password'
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Contraseña
-            </button>
-            <button
-              type="button"
-              disabled={isPending || isCooldownActive}
-              aria-pressed={mode === 'otp'}
-              onClick={() => changeMode('otp')}
-              className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                mode === 'otp'
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Código por email
-            </button>
-          </div>
-
           {isError && (
-            <p className="mt-3 text-sm text-red-500" role="alert">
-              {getErrorMessage(error)}
-              {isCooldownActive ? ` Intenta de nuevo en ${remainingSeconds}s.` : ''}
-            </p>
+            <div
+              className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700"
+              role="alert"
+            >
+              <p className="font-medium">No pudimos iniciar sesión</p>
+              <p className="mt-0.5 text-red-600">
+                {getErrorMessage(error)}
+                {isCooldownActive ? ` Intenta de nuevo en ${remainingSeconds}s.` : ''}
+              </p>
+            </div>
           )}
 
           {statusMessage ? (
@@ -199,62 +151,71 @@ export default function LoginPage() {
           <form
             id="login-form"
             className="mt-6 space-y-5"
-            onSubmit={handleSubmit((data) => authenticate(data))}
+            onSubmit={handleSubmit(onSubmit)}
+            aria-busy={isPending}
+            noValidate
           >
-            <input type="hidden" {...register('mode')} />
-
             <InputField
               id="email"
               label="Email"
               placeholder="name@example.com"
               type="email"
               autoComplete="email"
-              {...register('email')}
+              disabled={isSubmitDisabled}
+              {...register('email', { onChange: clearRequestError })}
               error={errors.email?.message}
             />
 
-            {mode === 'password' && (
-              <>
-                <InputField
-                  id="password"
-                  label="Contraseña"
-                  placeholder="Contraseña"
-                  type="password"
-                  autoComplete="current-password"
-                  {...register('password')}
-                  error={errors.password?.message}
-                />
-                <div className="-mt-2 text-right">
-                  <Link
-                    href="/forgot-password"
-                    className="text-sm font-semibold text-indigo-500 transition hover:text-indigo-600"
-                  >
-                    ¿Olvidaste tu contraseña?
-                  </Link>
-                </div>
-              </>
-            )}
-
-            {mode === 'otp' && (
-              <p className="text-sm leading-6 text-slate-500">
-                Enviaremos un código al correo. Esta opción no crea cuentas nuevas.
-              </p>
-            )}
+            <InputField
+              id="password"
+              label="Contraseña"
+              placeholder="Contraseña"
+              type="password"
+              autoComplete="current-password"
+              disabled={isSubmitDisabled}
+              {...register('password', { onChange: clearRequestError })}
+              error={errors.password?.message}
+            />
+            <div className="-mt-2 text-right">
+              <Link
+                href="/forgot-password"
+                aria-disabled={isPending}
+                className={`text-sm font-semibold text-indigo-500 transition hover:text-indigo-600 ${
+                  isPending ? 'pointer-events-none opacity-50' : ''
+                }`}
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
 
             <Button
               type="submit"
               variant="primary"
-              disabled={isPending || isCooldownActive}
+              disabled={isSubmitDisabled}
               className="mt-1 w-full"
             >
-              {isPending
-                ? 'Procesando...'
-                : isCooldownActive
-                  ? `Espera ${remainingSeconds}s`
-                  : mode === 'otp'
-                    ? 'Enviar código'
-                    : 'Iniciar Sesión'}
+              {isPending ? (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                  />
+                  Iniciando sesión…
+                </>
+              ) : isCooldownActive ? (
+                `Espera ${remainingSeconds}s`
+              ) : (
+                'Iniciar Sesión'
+              )}
             </Button>
+
+            <p
+              className="min-h-5 text-center text-sm text-slate-500"
+              aria-live="polite"
+              role="status"
+            >
+              {isPending ? 'Validando tus credenciales de forma segura…' : ''}
+            </p>
           </form>
 
           <p className="mt-7 text-center text-sm text-slate-500">

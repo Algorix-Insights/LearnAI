@@ -1,16 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, BookOpen, Trophy } from 'lucide-react';
 
 import Stars from '@/assets/stars.svg';
-import BarChartLearning from '@/features/Dashboard/Components/BarChart';
-import DonutChartTime from '@/features/Dashboard/Components/DonutChart';
+import { ContentLoadingSkeleton } from '@/components/ContentLoadingSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import DueSoonCard from '@/features/Dashboard/Components/DueSoon';
-import LineCharRating from '@/features/Dashboard/Components/LineChart';
 import { MasteredNotebooksCard } from '@/features/Dashboard/Components/Mastered';
 import RecentActivityCard from '@/features/Dashboard/Components/RecentActivity';
 import ReinforceCard from '@/features/Dashboard/Components/Reinforce';
@@ -32,6 +32,42 @@ const periods: Array<{ value: StatisticsPeriod; label: string }> = [
   { value: 'all', label: 'Año' },
 ];
 
+const STATISTICS_STALE_TIME = 60_000;
+const NOTEBOOKS_STALE_TIME = 5 * 60_000;
+
+function ChartLoading({ className, label }: { className: string; label: string }) {
+  return (
+    <div aria-busy="true" aria-live="polite" className={className} role="status">
+      <span className="sr-only">{label}</span>
+      <Skeleton className="h-full w-full" />
+    </div>
+  );
+}
+
+const LineCharRating = dynamic(
+  () => import('@/features/Dashboard/Components/LineChart'),
+  {
+    loading: () => <ChartLoading className="h-32 w-full" label="Cargando gráfica de calificación" />,
+    ssr: false,
+  },
+);
+
+const BarChartLearning = dynamic(
+  () => import('@/features/Dashboard/Components/BarChart'),
+  {
+    loading: () => <ChartLoading className="h-56 w-full" label="Cargando gráfica de aprendizaje" />,
+    ssr: false,
+  },
+);
+
+const DonutChartTime = dynamic(
+  () => import('@/features/Dashboard/Components/DonutChart'),
+  {
+    loading: () => <ChartLoading className="h-48 w-full" label="Cargando distribución de tiempo" />,
+    ssr: false,
+  },
+);
+
 function hasNotebookId(
   notebook: Notebook,
 ): notebook is Notebook & { notebook_id: string } {
@@ -45,34 +81,58 @@ function notebookTimestamp(notebook: Notebook) {
   return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
+function selectDashboardNotebooks(response: { data: Notebook[] }) {
+  return response.data
+    .filter(hasNotebookId)
+    .filter((notebook) => notebook.status !== 'deleted')
+    .sort((left, right) => notebookTimestamp(right) - notebookTimestamp(left));
+}
+
+const EMPTY_NOTEBOOKS: ReturnType<typeof selectDashboardNotebooks> = [];
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [period, setPeriod] = useState<StatisticsPeriod>('week');
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const timezone = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    [],
+  );
   const statisticsQuery = useQuery({
     queryKey: ['statistics', period, timezone],
     queryFn: () => StatisticsService.getStatistics({ period, timezone }),
+    staleTime: STATISTICS_STALE_TIME,
   });
   const notebooksQuery = useQuery({
     queryKey: ['notebooks'],
     queryFn: () => NotebookService.list({ limit: 500, offset: 0 }),
+    select: selectDashboardNotebooks,
+    staleTime: NOTEBOOKS_STALE_TIME,
   });
   const statistics = statisticsQuery.data;
-  const notebooks = (notebooksQuery.data?.data ?? [])
-    .filter(hasNotebookId)
-    .filter((notebook) => notebook.status !== 'deleted')
-    .sort((left, right) => notebookTimestamp(right) - notebookTimestamp(left));
+  const notebooks = notebooksQuery.data ?? EMPTY_NOTEBOOKS;
+  const { reinforcement, upcoming } = useMemo<{
+    reinforcement: ReinforcementNotebook[];
+    upcoming: UpcomingNotebook[];
+  }>(() => {
+    if (!statistics) return { reinforcement: [], upcoming: [] };
 
-  const reinforcement: ReinforcementNotebook[] = statistics
-    ? [
+    const now = Date.now();
+    const reinforcementIds = new Set(
+      statistics.reinforcement.map((item) => item.notebook_id),
+    );
+    const upcomingIds = new Set(
+      statistics.upcoming.map((item) => item.notebook_id),
+    );
+
+    return {
+      reinforcement: [
         ...statistics.reinforcement,
         ...notebooks
-          .filter((notebook) => {
-            const alreadyIncluded = statistics.reinforcement.some(
-              (item) => item.notebook_id === notebook.notebook_id,
-            );
-            return !alreadyIncluded && notebook.is_dominated !== true;
-          })
+          .filter(
+            (notebook) =>
+              !reinforcementIds.has(notebook.notebook_id) &&
+              notebook.is_dominated !== true,
+          )
           .map((notebook) => ({
             notebook_id: notebook.notebook_id,
             name: notebook.name || 'Cuaderno sin nombre',
@@ -80,20 +140,16 @@ export default function DashboardPage() {
             flashcards_count: 0,
             exams_count: 0,
           })),
-      ]
-    : [];
-
-  const upcoming: UpcomingNotebook[] = statistics
-    ? [
+      ],
+      upcoming: [
         ...statistics.upcoming,
         ...notebooks
           .filter((notebook) => {
-            if (!notebook.due_date) return false;
+            if (!notebook.due_date || upcomingIds.has(notebook.notebook_id)) {
+              return false;
+            }
             const dueTime = new Date(notebook.due_date).getTime();
-            const alreadyIncluded = statistics.upcoming.some(
-              (item) => item.notebook_id === notebook.notebook_id,
-            );
-            return !alreadyIncluded && Number.isFinite(dueTime) && dueTime >= Date.now();
+            return Number.isFinite(dueTime) && dueTime >= now;
           })
           .map((notebook) => ({
             notebook_id: notebook.notebook_id,
@@ -103,8 +159,9 @@ export default function DashboardPage() {
       ].sort(
         (left, right) =>
           new Date(left.due_date).getTime() - new Date(right.due_date).getTime(),
-      )
-    : [];
+      ),
+    };
+  }, [notebooks, statistics]);
 
   return (
     <AppShell activeHref="/dashboard">
@@ -160,9 +217,12 @@ export default function DashboardPage() {
           </div>
 
           {notebooksQuery.isPending ? (
-            <p className="mt-5 text-sm text-slate-500" role="status">
-              Cargando cuadernos…
-            </p>
+            <ContentLoadingSkeleton
+              className="mt-5"
+              count={3}
+              label="Cargando cuadernos"
+              variant="notebook-card"
+            />
           ) : notebooksQuery.isError ? (
             <p className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700" role="alert">
               {notebooksQuery.error instanceof Error
@@ -205,9 +265,11 @@ export default function DashboardPage() {
         </section>
 
         {statisticsQuery.isPending ? (
-          <div className="grid min-h-72 place-items-center rounded-2xl border border-[color:var(--app-border)] bg-white text-sm text-slate-500" role="status">
-            Cargando tus estadísticas…
-          </div>
+          <ContentLoadingSkeleton
+            count={6}
+            label="Cargando tus estadísticas"
+            variant="metric"
+          />
         ) : statisticsQuery.isError ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700" role="alert">
             {statisticsQuery.error instanceof Error

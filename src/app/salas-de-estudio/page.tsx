@@ -4,8 +4,12 @@ import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Users } from 'lucide-react';
 
+import { ContentLoadingSkeleton } from '@/components/ContentLoadingSkeleton';
 import { AppShell } from '@/layouts/app-shell';
 import { RoomService } from '@/services/Room';
+import type { RoomListResponse } from '@/services/contracts';
+
+const ROOMS_STALE_TIME = 2 * 60_000;
 
 export default function SalasDeEstudioPage() {
   const queryClient = useQueryClient();
@@ -14,16 +18,28 @@ export default function SalasDeEstudioPage() {
   const roomsQuery = useQuery({
     queryKey: ['rooms'],
     queryFn: () => RoomService.list({ limit: 20, offset: 0 }),
+    staleTime: ROOMS_STALE_TIME,
   });
   const createRoom = useMutation({
     mutationFn: () => RoomService.create({
       name: name.trim(),
       description: description.trim() || undefined,
     }),
-    onSuccess: async () => {
+    onSuccess: (room) => {
       setName('');
       setDescription('');
-      await queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.setQueryData<RoomListResponse>(['rooms'], (current) => ({
+        data: [
+          room,
+          ...(current?.data.filter((item) => item.room_id !== room.room_id) ?? []),
+        ],
+        limit: current?.limit ?? 20,
+        offset: current?.offset ?? 0,
+      }));
+      void queryClient.invalidateQueries({
+        queryKey: ['rooms'],
+        refetchType: 'active',
+      });
     },
   });
 
@@ -98,7 +114,11 @@ export default function SalasDeEstudioPage() {
           </div>
 
           {roomsQuery.isPending ? (
-            <div className="grid min-h-48 place-items-center rounded-3xl border border-[color:var(--app-border)] bg-white text-sm text-slate-500" role="status">Cargando salas…</div>
+            <ContentLoadingSkeleton
+              count={3}
+              label="Cargando salas"
+              variant="room"
+            />
           ) : roomsQuery.isError ? (
             <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700" role="alert">
               {roomsQuery.error instanceof Error ? roomsQuery.error.message : 'No fue posible cargar las salas.'}
