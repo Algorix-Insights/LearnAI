@@ -5,16 +5,31 @@ import type {
   AttemptSessionResponse,
   ExamGenerationPayload,
   ExamGenerationResponse,
+  ExamListResponse,
   FinishedAttemptResponse,
+  PaginationParams,
   SavedAttemptAnswer,
   SavedAttemptAnswerResponse,
   SubmitAttemptAnswerPayload,
   UUID,
 } from '@/services/contracts';
 
+const notebookPath = (notebookId: UUID) => `/notebooks/${notebookId}`;
 const attemptPath = (attemptId: UUID) => `/attempts/${attemptId}`;
 
 export const ExamService = {
+  listExams: async (
+    notebookId: UUID,
+    pagination: PaginationParams = {},
+  ): Promise<ExamListResponse> => {
+    const response = await api.get<ExamListResponse>(
+      `${notebookPath(notebookId)}/exams`,
+      { params: pagination },
+    );
+
+    return response.data;
+  },
+
   generateExam: async (
     notebookId: UUID,
     payload: ExamGenerationPayload = {},

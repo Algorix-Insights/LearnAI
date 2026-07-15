@@ -4,11 +4,13 @@ import { useState, type UIEvent } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useCountdown } from '@/hooks/use-countdown';
+import { ExamService } from '@/services/Exam';
 import { RagService } from '@/services/Rag';
 import { ApiClientError } from '@/services/api';
 import type { Notebook } from '@/services/contracts';
 
 import DueDateCard from './DueDateCard';
+import ExamsSection from './ExamsSection';
 import ResourcesSection from './ResourcesSection';
 import SidebarHeader from './SidebarHeader';
 import SourcesSection from './SourcesSection';
@@ -41,6 +43,11 @@ export default function SidebarLeft({ notebookId, notebook, onClose, closeButton
       : lastPage.offset + lastPage.limit,
   });
   const flashcards = flashcardsQuery.data?.pages.flatMap((page) => page.data) ?? [];
+  const examsQuery = useQuery({
+    queryKey: ['notebooks', notebookId, 'exams'],
+    queryFn: () => ExamService.listExams(notebookId, { limit: 100, offset: 0 }),
+  });
+  const exams = examsQuery.data?.data ?? [];
   const uploadDocument = useMutation({
     mutationFn: (file: File) => RagService.uploadDocument(notebookId, { file }),
     onSuccess: async () => {
@@ -127,6 +134,13 @@ export default function SidebarLeft({ notebookId, notebook, onClose, closeButton
           onGenerate={() => generateFlashcards.mutate()}
           onRetry={() => void flashcardsQuery.refetch()}
           onLoadMore={() => flashcardsQuery.fetchNextPage()}
+        />
+        <ExamsSection
+          notebookId={notebookId}
+          exams={exams}
+          isLoading={examsQuery.isPending}
+          isError={examsQuery.isError}
+          onRetry={() => void examsQuery.refetch()}
         />
       </div>
     </aside>
