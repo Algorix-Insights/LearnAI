@@ -161,7 +161,7 @@ export default function LoginPage() {
 
   const handleOtpSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (otpValue.length !== 6 || isVerifyingOtp || isResendingOtp || isVerifyCooldownActive) return;
+    if (otpValue.length !== 8 || isVerifyingOtp || isResendingOtp || isVerifyCooldownActive) return;
     verifyOtp(otpValue);
   };
 
@@ -292,7 +292,7 @@ export default function LoginPage() {
                   aria-live="polite"
                   role="status"
                 >
-                  {isPending ? 'Validando tus credenciales de forma segura…' : ''}
+                  {isPending ? 'Validando credenciales' : ''}
                 </p>
               </form>
 
@@ -313,7 +313,7 @@ export default function LoginPage() {
               </h2>
 
               <p className="mt-4 self-start text-sm text-slate-500">
-                Hemos enviado un código de 6 dígitos a{' '}
+                Hemos enviado un código de 8 dígitos a{' '}
                 <strong className="text-slate-700">{otpEmail}</strong>
               </p>
 
@@ -356,7 +356,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 variant="primary"
-                disabled={isVerifyingOtp || isResendingOtp || isVerifyCooldownActive || otpValue.length !== 6}
+                disabled={isVerifyingOtp || isResendingOtp || isVerifyCooldownActive || otpValue.length !== 8}
                 className="mt-6 w-full"
               >
                 {isVerifyingOtp

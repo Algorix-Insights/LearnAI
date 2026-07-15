@@ -195,7 +195,7 @@ export default function InputOTPInvalid() {
                         Verificación de Seguridad
                     </h1>
                     <p className="text-xs text-zinc-400 mt-1">
-                        Introduce el código de 6 dígitos enviado a tu correo ({challenge.email})
+                        Introduce el código de 8 dígitos enviado a tu correo ({challenge.email})
                     </p>
                 </div>
 
@@ -247,7 +247,7 @@ export default function InputOTPInvalid() {
                 <Button
                     type="submit"
                     variant="primary"
-                    disabled={isVerifyingOtp || isResendingOtp || isVerifyCooldownActive || value.length !== 6}
+                    disabled={isVerifyingOtp || isResendingOtp || isVerifyCooldownActive || value.length !== 8}
                     className="mt-6 w-full h-12 rounded-xl text-sm font-medium tracking-wide"
                 >
                     <span className="text-sm font-medium text-zinc-100 tracking-wide">
