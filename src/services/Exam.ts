@@ -22,10 +22,9 @@ export const ExamService = {
     notebookId: UUID,
     pagination: PaginationParams = {},
   ): Promise<ExamListResponse> => {
-    const response = await api.get<ExamListResponse>(
-      `${notebookPath(notebookId)}/exams`,
-      { params: pagination },
-    );
+    const response = await api.get<ExamListResponse>('/exams', {
+      params: { ...pagination, notebook_id: notebookId },
+    });
 
     return response.data;
   },
