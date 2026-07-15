@@ -3,15 +3,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle, ChevronLeft, ChevronRight, Clock, LoaderCircle, XCircle } from 'lucide-react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/Button';
 import { ExamService } from '@/services/Exam';
 import type { AttemptResult } from '@/services/contracts';
 
+function buildPayload(value: string, optionIds: Set<string>) {
+  return optionIds.has(value)
+    ? { selected_option_id: value }
+    : { answer_text: value };
+}
+
 export default function AttemptPage() {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const params = useParams<{ id: string; attemptId: string }>();
   const notebookId = params.id;
@@ -29,45 +34,43 @@ export default function AttemptPage() {
 
   const attempt = attemptQuery.data;
   const questions = attempt?.questions ?? [];
-  const answers = attempt?.answers ?? [];
   const currentQuestion = questions[currentIndex];
+  const optionIds = new Set(questions.flatMap((q) => q.options.map((o) => o.option_id)));
 
-  useEffect(() => {
-    if (answers.length > 0 && questions.length > 0) {
-      const initial: Record<string, string> = {};
-      for (const answer of answers) {
-        if (answer.selected_option_id) {
-          initial[answer.question_id] = answer.selected_option_id;
-        } else if (answer.answer_text) {
-          initial[answer.question_id] = answer.answer_text;
-        }
-      }
-      setLocalAnswers((prev) => {
-        const needsUpdate = Object.keys(initial).some((k) => prev[k] !== initial[k]);
-        if (needsUpdate) return { ...prev, ...initial };
-        return prev;
-      });
-    }
-  }, [answers, questions.length]);
-
-  const hasSelectedOption = (questionId: string) => {
-    const val = localAnswers[questionId];
+  const allAnswered = questions.every((q) => {
+    const val = localAnswers[q.question_id];
     return val !== undefined && val !== '';
-  };
-
-  const submitAnswer = useMutation({
-    mutationFn: async ({ questionId, value }: { questionId: string; value: string }) => {
-      const isOption = currentQuestion?.options.some((o) => o.option_id === value);
-      const payload = isOption ? { selected_option_id: value } : { answer_text: value };
-      await ExamService.submitAnswer(attemptId, questionId, payload);
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['attempts', attemptId] });
-    },
   });
 
-  const finishAttempt = useMutation({
-    mutationFn: () => ExamService.finishAttempt(attemptId),
+  useEffect(() => {
+    if (attempt?.answers && questions.length > 0) {
+      setLocalAnswers((prev) => {
+        const initial = { ...prev };
+        let changed = false;
+        for (const answer of attempt.answers) {
+          const key = answer.question_id;
+          const val = answer.selected_option_id ?? answer.answer_text ?? '';
+          if (initial[key] !== val) {
+            initial[key] = val;
+            changed = true;
+          }
+        }
+        return changed ? initial : prev;
+      });
+    }
+  }, [attempt?.answers, questions.length]);
+
+  const finishWithAnswers = useMutation({
+    mutationFn: async () => {
+      await Promise.all(
+        questions.map((q) => {
+          const value = localAnswers[q.question_id];
+          if (!value) return Promise.resolve();
+          return ExamService.submitAnswer(attemptId, q.question_id, buildPayload(value, optionIds));
+        }),
+      );
+      return ExamService.finishAttempt(attemptId);
+    },
     onSuccess: (data) => {
       setResult(data);
       void queryClient.invalidateQueries({ queryKey: ['attempts', attemptId] });
@@ -78,8 +81,6 @@ export default function AttemptPage() {
   const progressPercent = questions.length > 0
     ? Math.round(((Object.keys(localAnswers).length) / questions.length) * 100)
     : 0;
-
-  const unansweredCount = questions.length - Object.keys(localAnswers).length;
 
   if (result) {
     return (
@@ -299,31 +300,6 @@ export default function AttemptPage() {
                 <span>Anterior</span>
               </Button>
 
-              {hasSelectedOption(currentQuestion.question_id) ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  type="button"
-                  disabled={submitAnswer.isPending}
-                  onClick={() => {
-                    const value = localAnswers[currentQuestion.question_id];
-                    if (value) {
-                      submitAnswer.mutate({
-                        questionId: currentQuestion.question_id,
-                        value,
-                      });
-                    }
-                  }}
-                >
-                  {submitAnswer.isPending ? (
-                    <LoaderCircle className="size-4 animate-spin" />
-                  ) : (
-                    <CheckCircle className="size-4" />
-                  )}
-                  <span>Guardar</span>
-                </Button>
-              ) : null}
-
               <Button
                 variant="pageOutline"
                 size="sm"
@@ -341,18 +317,16 @@ export default function AttemptPage() {
             <Button
               variant="primary"
               type="button"
-              disabled={unansweredCount > 0 || finishAttempt.isPending}
-              onClick={() => finishAttempt.mutate()}
+              disabled={!allAnswered || finishWithAnswers.isPending}
+              onClick={() => finishWithAnswers.mutate()}
               className="w-full sm:w-auto"
             >
-              {finishAttempt.isPending ? (
+              {finishWithAnswers.isPending ? (
                 <LoaderCircle className="size-4 animate-spin" />
               ) : null}
-              {finishAttempt.isPending
-                ? 'Calificando…'
-                : unansweredCount > 0
-                  ? `Responde todas las preguntas (${unansweredCount} restantes)`
-                  : 'Finalizar examen'}
+              {finishWithAnswers.isPending
+                ? 'Enviando respuestas…'
+                : 'Finalizar examen'}
             </Button>
           </div>
         </div>
