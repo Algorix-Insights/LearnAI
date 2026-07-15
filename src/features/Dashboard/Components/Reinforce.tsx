@@ -2,7 +2,14 @@ import Link from "next/link";
 import { Info } from "lucide-react";
 import type { ReinforcementNotebook } from '@/services/contracts';
 
+const MAX_VISIBLE = 2;
+
 export default function ReinforceCard({ data = [] }: { data?: ReinforcementNotebook[] }) {
+  // Los más graves primero (menor dominio = más urgente reforzar)
+  const sorted = [...data].sort((a, b) => a.mastery_percent - b.mastery_percent);
+  const visible = sorted.slice(0, MAX_VISIBLE);
+  const remaining = data.length - visible.length;
+
   return (
     <div
       style={{ gridArea: 'reforzar' }}
@@ -16,9 +23,9 @@ export default function ReinforceCard({ data = [] }: { data?: ReinforcementNoteb
       </div>
 
       <div className="flex flex-col gap-7">
-        {data.length === 0 ? (
+        {visible.length === 0 ? (
           <p className="text-sm text-slate-400">No hay temas pendientes por reforzar.</p>
-        ) : data.map((topic) => (
+        ) : visible.map((topic) => (
           <div key={topic.notebook_id} className="flex flex-col gap-2">
             <div className="flex items-center justify-between text-sm">
                 <div className="flex gap-2 items-center">
@@ -44,7 +51,9 @@ export default function ReinforceCard({ data = [] }: { data?: ReinforcementNoteb
         href="/biblioteca"
         className="mt-2 text-xs text-slate-800 font-base hover:underline"
       >
-        Ver todos los cuadernos →
+        {remaining > 0
+          ? `Ver los demás cuadernos (${remaining}) →`
+          : "Ver todos los cuadernos →"}
       </Link>
     </div>
   );
