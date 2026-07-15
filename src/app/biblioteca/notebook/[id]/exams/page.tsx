@@ -1,15 +1,16 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, GraduationCap } from 'lucide-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { ArrowLeft, GraduationCap, LoaderCircle } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 
 import { Button } from '@/components/Button';
 import { ExamService } from '@/services/Exam';
 import { NotebookService } from '@/services/Notebook';
 
 export default function ExamsPage() {
+  const router = useRouter();
   const params = useParams<{ id: string }>();
   const notebookId = params.id;
 
@@ -24,6 +25,13 @@ export default function ExamsPage() {
   });
 
   const exams = examsQuery.data?.data ?? [];
+
+  const startAttempt = useMutation({
+    mutationFn: (examId: string) => ExamService.startAttempt(examId),
+    onSuccess: (session, examId) => {
+      router.push(`/biblioteca/notebook/${notebookId}/exams/attempt/${session.attempt_id}`);
+    },
+  });
 
   return (
     <div className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6 p-4 sm:p-8">
@@ -117,8 +125,15 @@ export default function ExamsPage() {
                 size="sm"
                 type="button"
                 className="shrink-0"
+                disabled={startAttempt.isPending && startAttempt.variables === exam.exam_id}
+                onClick={() => {
+                  if (exam.exam_id) startAttempt.mutate(exam.exam_id);
+                }}
               >
-                Iniciar
+                {startAttempt.isPending && startAttempt.variables === exam.exam_id ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : null}
+                {startAttempt.isPending && startAttempt.variables === exam.exam_id ? 'Iniciando…' : 'Iniciar'}
               </Button>
             </div>
           ))}
