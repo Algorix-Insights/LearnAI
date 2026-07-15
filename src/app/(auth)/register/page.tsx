@@ -8,16 +8,10 @@ import { useForm } from 'react-hook-form';
 
 import { Button } from '@/components/Button';
 import InputField from '@/components/InputField';
-import { establishSession } from '@/features/auth/session';
 import { SignUpFormData, signUpSchema } from '@/features/auth/signUpSchema';
 import { useCountdown } from '@/hooks/use-countdown';
-import { storePendingOtpEmail } from '@/lib/auth-client';
 import { AuthService } from '@/services/Auth';
 import { ApiClientError } from '@/services/api';
-
-type RegisterResult =
-  | { flow: 'authenticated' }
-  | { flow: 'otp'; email: string };
 
 function getErrorMessage(error: unknown) {
   if (error instanceof ApiClientError || error instanceof Error) {
@@ -38,14 +32,10 @@ export default function RegisterPage() {
   const {
     register,
     handleSubmit,
-    watch,
-    setValue,
-    clearErrors,
     formState: { errors },
   } = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
-      mode: 'password',
       name: '',
       lastname: '',
       email: '',
@@ -54,40 +44,23 @@ export default function RegisterPage() {
     },
   });
 
-  const mode = watch('mode');
-
   const {
     mutate: registerUser,
     isPending,
     isError,
     error,
     reset: resetRegistration,
-  } = useMutation<RegisterResult, unknown, SignUpFormData>({
+  } = useMutation<void, unknown, SignUpFormData>({
     mutationFn: async (data) => {
-      const session = await AuthService.register({
+      await AuthService.register({
         name: data.name,
         last_name: data.lastname,
         email: data.email,
-        ...(data.mode === 'password'
-          ? { password: data.password ?? '' }
-          : {}),
+        password: data.password,
       });
-
-      if (Boolean(session.access_token)) {
-        await establishSession(session);
-        return { flow: 'authenticated' };
-      }
-
-      return { flow: 'otp', email: data.email };
     },
-    onSuccess: (result) => {
-      if (result.flow === 'authenticated') {
-        router.replace('/home');
-        return;
-      }
-
-      storePendingOtpEmail(result.email, 'register', 'email');
-      router.push('/otp');
+    onSuccess: () => {
+      router.push('/login');
     },
     onError: (requestError) => {
       if (
@@ -98,12 +71,6 @@ export default function RegisterPage() {
       }
     },
   });
-
-  const changeMode = (nextMode: SignUpFormData['mode']) => {
-    setValue('mode', nextMode, { shouldValidate: false });
-    clearErrors();
-    resetRegistration();
-  };
 
   return (
     <section className="grid min-h-screen w-full overflow-hidden shadow-[0_24px_80px_rgba(88,75,255,0.22)] ring-1 ring-white/70 backdrop-blur-xl lg:grid-cols-[1.08fr_0.92fr]">
@@ -139,39 +106,6 @@ export default function RegisterPage() {
             Registrarse
           </h2>
 
-          <div
-            className="mt-6 grid grid-cols-2 rounded-xl bg-slate-100 p-1"
-            role="group"
-            aria-label="Método de registro"
-          >
-            <button
-              type="button"
-              disabled={isPending || isCooldownActive}
-              aria-pressed={mode === 'password'}
-              onClick={() => changeMode('password')}
-              className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                mode === 'password'
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Con contraseña
-            </button>
-            <button
-              type="button"
-              disabled={isPending || isCooldownActive}
-              aria-pressed={mode === 'passwordless'}
-              onClick={() => changeMode('passwordless')}
-              className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                mode === 'passwordless'
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Sin contraseña
-            </button>
-          </div>
-
           {isError && (
             <p className="mt-3 text-sm text-red-500" role="alert">
               {getErrorMessage(error)}
@@ -183,8 +117,6 @@ export default function RegisterPage() {
             className="mt-6 space-y-5"
             onSubmit={handleSubmit((data) => registerUser(data))}
           >
-            <input type="hidden" {...register('mode')} />
-
             <InputField
               id="name"
               label="Nombre"
@@ -215,33 +147,25 @@ export default function RegisterPage() {
               error={errors.email?.message}
             />
 
-            {mode === 'password' ? (
-              <>
-                <InputField
-                  id="password"
-                  label="Contraseña"
-                  placeholder="Contraseña"
-                  type="password"
-                  autoComplete="new-password"
-                  {...register('password')}
-                  error={errors.password?.message}
-                />
+            <InputField
+              id="password"
+              label="Contraseña"
+              placeholder="Contraseña"
+              type="password"
+              autoComplete="new-password"
+              {...register('password')}
+              error={errors.password?.message}
+            />
 
-                <InputField
-                  id="repeatPassword"
-                  label="Repetir Contraseña"
-                  placeholder="Repetir Contraseña"
-                  type="password"
-                  autoComplete="new-password"
-                  {...register('repeatPassword')}
-                  error={errors.repeatPassword?.message}
-                />
-              </>
-            ) : (
-              <p className="text-sm leading-6 text-slate-500">
-                Enviaremos un código por email para completar registro.
-              </p>
-            )}
+            <InputField
+              id="repeatPassword"
+              label="Repetir Contraseña"
+              placeholder="Repetir Contraseña"
+              type="password"
+              autoComplete="new-password"
+              {...register('repeatPassword')}
+              error={errors.repeatPassword?.message}
+            />
 
             <Button
               type="submit"
@@ -253,9 +177,7 @@ export default function RegisterPage() {
                 ? 'Procesando...'
                 : isCooldownActive
                   ? `Espera ${remainingSeconds}s`
-                  : mode === 'passwordless'
-                    ? 'Enviar código'
-                    : 'Registrarse'}
+                  : 'Registrarse'}
             </Button>
           </form>
 

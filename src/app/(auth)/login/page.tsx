@@ -9,10 +9,10 @@ import { useForm } from 'react-hook-form';
 
 import { Button } from '@/components/Button';
 import InputField from '@/components/InputField';
+import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/components/ui/input-otp';
 import { establishSession } from '@/features/auth/session';
 import { SignInFormData, signInSchema } from '@/features/auth/signIn';
 import { useCountdown } from '@/hooks/use-countdown';
-import { getSafeProtectedRoute } from '@/lib/auth';
 import { AuthService } from '@/services/Auth';
 import { ApiClientError } from '@/services/api';
 
@@ -24,13 +24,32 @@ function getErrorMessage(error: unknown) {
   return 'Error al iniciar sesión. Por favor, inténtalo de nuevo.';
 }
 
+const slotClassName =
+  "h-11 w-8 rounded-lg border-slate-300 bg-white text-lg font-semibold text-slate-900 shadow-sm transition-all duration-200 focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 aria-invalid:border-rose-300 aria-invalid:bg-rose-50 aria-invalid:text-rose-600 sm:h-14 sm:w-12 sm:rounded-xl sm:text-xl";
+
 export default function LoginPage() {
   const router = useRouter();
+  const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otpValue, setOtpValue] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
+
   const {
     isActive: isCooldownActive,
     remainingSeconds,
     start: startCooldown,
+  } = useCountdown();
+
+  const {
+    isActive: isResendCooldownActive,
+    remainingSeconds: resendRemaining,
+    start: startResendCooldown,
+  } = useCountdown();
+
+  const {
+    isActive: isVerifyCooldownActive,
+    remainingSeconds: verifyRemaining,
+    start: startVerifyCooldown,
   } = useCountdown();
 
   const {
@@ -60,19 +79,16 @@ export default function LoginPage() {
     reset: resetAuthentication,
   } = useMutation<void, unknown, SignInFormData>({
     mutationFn: async (data) => {
-      const session = await AuthService.login({
+      await AuthService.login({
         email: data.email,
         password: data.password,
       });
-      if (!Boolean(session.access_token)) {
-        throw new Error('La API no devolvió una sesión válida.');
-      }
-
-      await establishSession(session);
+      await AuthService.sendOtp({ email: data.email });
+      setOtpEmail(data.email);
     },
     onSuccess: () => {
-      const requestedRoute = new URLSearchParams(window.location.search).get('next');
-      router.replace(getSafeProtectedRoute(requestedRoute));
+      setStep('otp');
+      startResendCooldown(60);
     },
     onError: (requestError) => {
       if (
@@ -80,6 +96,54 @@ export default function LoginPage() {
         requestError.retryAfterSeconds
       ) {
         startCooldown(requestError.retryAfterSeconds);
+      }
+    },
+  });
+
+  const {
+    mutate: verifyOtp,
+    isPending: isVerifyingOtp,
+    isError: isVerifyError,
+    error: verifyError,
+    reset: resetVerification,
+  } = useMutation<void, unknown, string>({
+    mutationFn: async (token) => {
+      const session = await AuthService.verifyOtp({ email: otpEmail, token, type: 'email' });
+      if (!session.access_token) {
+        throw new Error('La API no devolvió una sesión válida.');
+      }
+      await establishSession(session);
+    },
+    onSuccess: () => {
+      router.replace('/home');
+    },
+    onError: (requestError) => {
+      if (
+        requestError instanceof ApiClientError &&
+        requestError.retryAfterSeconds
+      ) {
+        startVerifyCooldown(requestError.retryAfterSeconds);
+      }
+    },
+  });
+
+  const {
+    mutate: resendOtp,
+    isPending: isResendingOtp,
+  } = useMutation<void, unknown, void>({
+    mutationFn: async () => {
+      await AuthService.sendOtp({ email: otpEmail });
+    },
+    onSuccess: () => {
+      setOtpValue('');
+      startResendCooldown(60);
+    },
+    onError: (requestError) => {
+      if (
+        requestError instanceof ApiClientError &&
+        requestError.retryAfterSeconds
+      ) {
+        startResendCooldown(requestError.retryAfterSeconds);
       }
     },
   });
@@ -93,6 +157,18 @@ export default function LoginPage() {
   const onSubmit = (data: SignInFormData) => {
     if (isSubmitDisabled) return;
     authenticate(data);
+  };
+
+  const handleOtpSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otpValue.length !== 6 || isVerifyingOtp || isResendingOtp || isVerifyCooldownActive) return;
+    verifyOtp(otpValue);
+  };
+
+  const goBackToCredentials = () => {
+    setStep('credentials');
+    setOtpValue('');
+    resetVerification();
   };
 
   return (
@@ -125,108 +201,193 @@ export default function LoginPage() {
 
       <div className="flex items-center justify-center px-5 py-8 sm:px-8 lg:px-10">
         <div className="w-full max-w-lg">
-          <h2 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-            Iniciar Sesión
-          </h2>
+          {step === 'credentials' ? (
+            <>
+              <h2 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+                Iniciar Sesión
+              </h2>
 
-          {isError && (
-            <div
-              className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700"
-              role="alert"
-            >
-              <p className="font-medium">No pudimos iniciar sesión</p>
-              <p className="mt-0.5 text-red-600">
-                {getErrorMessage(error)}
-                {isCooldownActive ? ` Intenta de nuevo en ${remainingSeconds}s.` : ''}
-              </p>
-            </div>
-          )}
-
-          {statusMessage ? (
-            <p className="mt-3 text-sm text-emerald-700" role="status">
-              {statusMessage}
-            </p>
-          ) : null}
-
-          <form
-            id="login-form"
-            className="mt-6 space-y-5"
-            onSubmit={handleSubmit(onSubmit)}
-            aria-busy={isPending}
-            noValidate
-          >
-            <InputField
-              id="email"
-              label="Email"
-              placeholder="name@example.com"
-              type="email"
-              autoComplete="email"
-              disabled={isSubmitDisabled}
-              {...register('email', { onChange: clearRequestError })}
-              error={errors.email?.message}
-            />
-
-            <InputField
-              id="password"
-              label="Contraseña"
-              placeholder="Contraseña"
-              type="password"
-              autoComplete="current-password"
-              disabled={isSubmitDisabled}
-              {...register('password', { onChange: clearRequestError })}
-              error={errors.password?.message}
-            />
-            <div className="-mt-2 text-right">
-              <Link
-                href="/forgot-password"
-                aria-disabled={isPending}
-                className={`text-sm font-semibold text-indigo-500 transition hover:text-indigo-600 ${
-                  isPending ? 'pointer-events-none opacity-50' : ''
-                }`}
-              >
-                ¿Olvidaste tu contraseña?
-              </Link>
-            </div>
-
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={isSubmitDisabled}
-              className="mt-1 w-full"
-            >
-              {isPending ? (
-                <>
-                  <span
-                    aria-hidden="true"
-                    className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
-                  />
-                  Iniciando sesión…
-                </>
-              ) : isCooldownActive ? (
-                `Espera ${remainingSeconds}s`
-              ) : (
-                'Iniciar Sesión'
+              {isError && (
+                <div
+                  className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700"
+                  role="alert"
+                >
+                  <p className="font-medium">No pudimos iniciar sesión</p>
+                  <p className="mt-0.5 text-red-600">
+                    {getErrorMessage(error)}
+                    {isCooldownActive ? ` Intenta de nuevo en ${remainingSeconds}s.` : ''}
+                  </p>
+                </div>
               )}
-            </Button>
 
-            <p
-              className="min-h-5 text-center text-sm text-slate-500"
-              aria-live="polite"
-              role="status"
-            >
-              {isPending ? 'Validando tus credenciales de forma segura…' : ''}
-            </p>
-          </form>
+              {statusMessage ? (
+                <p className="mt-3 text-sm text-emerald-700" role="status">
+                  {statusMessage}
+                </p>
+              ) : null}
 
-          <p className="mt-7 text-center text-sm text-slate-500">
-            ¿No tienes una cuenta?{' '}
-            <Link
-              href="/register"
-              className="font-semibold text-indigo-500 transition hover:text-indigo-600"
-            >
-              Regístrate
-            </Link>
-          </p>
+              <form
+                id="login-form"
+                className="mt-6 space-y-5"
+                onSubmit={handleSubmit(onSubmit)}
+                aria-busy={isPending}
+                noValidate
+              >
+                <InputField
+                  id="email"
+                  label="Email"
+                  placeholder="name@example.com"
+                  type="email"
+                  autoComplete="email"
+                  disabled={isSubmitDisabled}
+                  {...register('email', { onChange: clearRequestError })}
+                  error={errors.email?.message}
+                />
+
+                <InputField
+                  id="password"
+                  label="Contraseña"
+                  placeholder="Contraseña"
+                  type="password"
+                  autoComplete="current-password"
+                  disabled={isSubmitDisabled}
+                  {...register('password', { onChange: clearRequestError })}
+                  error={errors.password?.message}
+                />
+                <div className="-mt-2 text-right">
+                  <Link
+                    href="/forgot-password"
+                    aria-disabled={isPending}
+                    className={`text-sm font-semibold text-indigo-500 transition hover:text-indigo-600 ${
+                      isPending ? 'pointer-events-none opacity-50' : ''
+                    }`}
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                </div>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={isSubmitDisabled}
+                  className="mt-1 w-full"
+                >
+                  {isPending ? (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                      />
+                      Iniciando sesión…
+                    </>
+                  ) : isCooldownActive ? (
+                    `Espera ${remainingSeconds}s`
+                  ) : (
+                    'Iniciar Sesión'
+                  )}
+                </Button>
+
+                <p
+                  className="min-h-5 text-center text-sm text-slate-500"
+                  aria-live="polite"
+                  role="status"
+                >
+                  {isPending ? 'Validando tus credenciales de forma segura…' : ''}
+                </p>
+              </form>
+
+              <p className="mt-7 text-center text-sm text-slate-500">
+                ¿No tienes una cuenta?{' '}
+                <Link
+                  href="/register"
+                  className="font-semibold text-indigo-500 transition hover:text-indigo-600"
+                >
+                  Regístrate
+                </Link>
+              </p>
+            </>
+          ) : (
+            <form onSubmit={handleOtpSubmit} className="flex flex-col items-center">
+              <h2 className="mt-1 self-start text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+                Verificación
+              </h2>
+
+              <p className="mt-4 self-start text-sm text-slate-500">
+                Hemos enviado un código de 6 dígitos a{' '}
+                <strong className="text-slate-700">{otpEmail}</strong>
+              </p>
+
+              {isVerifyError && (
+                <p className="mt-4 self-start text-sm text-red-500" role="alert">
+                  {verifyError instanceof Error
+                    ? verifyError.message
+                    : 'Código inválido. Por favor, inténtalo de nuevo.'}
+                  {isVerifyCooldownActive
+                    ? ` Intenta de nuevo en ${verifyRemaining}s.`
+                    : ''}
+                </p>
+              )}
+
+              <InputOTP
+                maxLength={9}
+                value={otpValue}
+                onChange={(nextValue) => {
+                  setOtpValue(nextValue);
+                  if (isVerifyError) resetVerification();
+                }}
+                aria-label="Código de verificación"
+                className="mt-6 gap-1 sm:gap-3"
+              >
+                <InputOTPGroup className="gap-1 sm:gap-2.5">
+                  <InputOTPSlot index={0} aria-invalid={isVerifyError} className={slotClassName} />
+                  <InputOTPSlot index={1} aria-invalid={isVerifyError} className={slotClassName} />
+                  <InputOTPSlot index={2} aria-invalid={isVerifyError} className={slotClassName} />
+                  <InputOTPSlot index={3} aria-invalid={isVerifyError} className={slotClassName} />
+                </InputOTPGroup>
+                <InputOTPSeparator className="mx-0 hidden font-light text-slate-400 sm:flex" />
+                <InputOTPGroup className="gap-1 sm:gap-2.5">
+                  <InputOTPSlot index={4} aria-invalid={isVerifyError} className={slotClassName} />
+                  <InputOTPSlot index={5} aria-invalid={isVerifyError} className={slotClassName} />
+                  <InputOTPSlot index={6} aria-invalid={isVerifyError} className={slotClassName} />
+                  <InputOTPSlot index={7} aria-invalid={isVerifyError} className={slotClassName} />
+                </InputOTPGroup>
+              </InputOTP>
+
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={isVerifyingOtp || isResendingOtp || isVerifyCooldownActive || otpValue.length !== 6}
+                className="mt-6 w-full"
+              >
+                {isVerifyingOtp
+                  ? 'Verificando...'
+                  : isVerifyCooldownActive
+                    ? `Espera ${verifyRemaining}s`
+                    : 'Verificar'}
+              </Button>
+
+              <button
+                type="button"
+                disabled={isResendingOtp || isVerifyingOtp || isResendCooldownActive}
+                onClick={() => resendOtp()}
+                className="mt-4 text-sm font-semibold text-indigo-500 transition hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isResendingOtp
+                  ? 'Reenviando…'
+                  : isResendCooldownActive
+                    ? `Reenviar en ${resendRemaining}s`
+                    : 'Reenviar código'}
+              </button>
+
+              <button
+                type="button"
+                onClick={goBackToCredentials}
+                className="mt-3 text-sm text-slate-500 transition hover:text-slate-700"
+              >
+                Volver atrás
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </section>
