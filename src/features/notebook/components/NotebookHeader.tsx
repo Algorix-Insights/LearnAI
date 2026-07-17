@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { MoreHorizontal, PanelLeftClose, Pencil, Share2, WandSparkles } from 'lucide-react';
 import { Button } from '@/components/Button';
+import { ShareNotebookDialog } from '@/features/salas/components/ShareNotebookDialog'
 
 type NotebookHeaderProps = {
     title: string;

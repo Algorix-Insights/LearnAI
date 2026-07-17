@@ -83,6 +83,11 @@ async function removeNotebook(
   return unwrapData(response.data);
 }
 
+async function getRoomsByNotebook(notebookId: string): Promise<RoomListResponse> {
+  const response = await api.get<RoomListResponse>(`/notebooks/${notebookId}/rooms`);
+  return response.data;
+}
+
 export const RoomService = {
   list,
   create,
@@ -95,6 +100,7 @@ export const RoomService = {
   removeMember,
   addNotebook,
   removeNotebook,
+  getRoomsByNotebook,
   getRooms: list,
   createRoom: create,
   getRoomById: get,
