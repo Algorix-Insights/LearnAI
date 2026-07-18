@@ -15,6 +15,8 @@ export function BibliotecaNotebooksSection({
   onFilterChange,
   notebooks,
 }: BibliotecaNotebooksSectionProps) {
+  const reversedNotebooks = [...notebooks].reverse();
+
   return (
     <section className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -52,46 +54,44 @@ export function BibliotecaNotebooksSection({
           </div>
         ) : null}
 
-        {notebooks.map((notebook) => (
-          <article
-            key={notebook.id}
-            className="flex flex-col gap-4 rounded-[1.5rem] border border-[color:var(--app-border)] bg-white px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.03)] sm:px-5 md:flex-row md:items-center md:justify-between"
-          >
-            <div className="flex items-start gap-4">
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[linear-gradient(135deg,rgba(116,82,245,0.12),rgba(119,234,222,0.28))] text-[color:var(--app-primary)]">
-                <span className="h-4 w-4 rounded-full border-2 border-current" />
-              </div>
+        {reversedNotebooks.map((notebook) => (
+  <Link
+    key={notebook.id}
+    href={`/biblioteca/notebook/${encodeURIComponent(notebook.id)}`}
+    className="flex flex-col gap-4 rounded-[1.5rem] border border-[color:var(--app-border)] bg-white px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.03)] transition hover:border-[color:var(--app-primary)] hover:shadow-[0_10px_30px_rgba(116,82,245,0.08)] sm:px-5 md:flex-row md:items-center md:justify-between"
+  >
+    <div className="flex items-start gap-4">
+      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[linear-gradient(135deg,rgba(116,82,245,0.12),rgba(119,234,222,0.28))] text-[color:var(--app-primary)]">
+        <span className="h-4 w-4 rounded-full border-2 border-current" />
+      </div>
 
-              <div className="min-w-0 space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="truncate text-base font-semibold text-slate-900 sm:text-lg">{notebook.title}</h3>
-                  {notebook.status ? (
-                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">
-                      {notebook.status}
-                    </span>
-                  ) : null}
-                </div>
+      <div className="min-w-0 space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="truncate text-base font-semibold text-slate-900 sm:text-lg">{notebook.title}</h3>
+          {notebook.status ? (
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">
+              {notebook.status}
+            </span>
+          ) : null}
+        </div>
 
-                <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">{notebook.category}</span>
-                  <span>Ult. vez visto: {notebook.lastSeen}</span>
-                </div>
-              </div>
-            </div>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">{notebook.category}</span>
+          <span>Ult. vez visto: {notebook.lastSeen}</span>
+        </div>
+      </div>
+    </div>
 
-            <div className="grid gap-2 text-sm text-slate-500 sm:grid-cols-2 md:min-w-[420px] md:justify-items-end md:text-right">
-              <div className="truncate">{notebook.detail}</div>
-              <div>{notebook.dueDate}</div>
-            </div>
+    <div className="grid gap-2 text-sm text-slate-500 sm:grid-cols-2 md:min-w-[420px] md:justify-items-end md:text-right">
+      <div className="truncate">{notebook.detail}</div>
+      <div>{notebook.dueDate}</div>
+    </div>
 
-            <Link
-              href={`/biblioteca/notebook/${encodeURIComponent(notebook.id)}`}
-              className="self-start rounded-full border border-[color:var(--app-border)] bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-[color:var(--app-primary)] hover:text-[color:var(--app-primary)] md:self-center"
-            >
-              Abrir
-            </Link>
-          </article>
-        ))}
+    {/* <div className="self-start rounded-full border border-[color:var(--app-border)] bg-white px-4 py-2 text-sm font-medium text-slate-600 transition [a:hover>&]:border-[color:var(--app-primary)] [a:hover>&]:text-[color:var(--app-primary)] md:self-center">
+      Abrir
+    </div> */}
+  </Link>
+))}
       </div>
     </section>
   );
